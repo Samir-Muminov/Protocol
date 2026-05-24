@@ -1,0 +1,33 @@
+{% extends 'protocol_app/base.html' %}
+{% block title %}PROTOCOL — ENLIST{% endblock %}
+
+{% block content %}
+<div class="auth-wrap">
+  <div class="auth-card">
+    <div class="auth-logo">PROTOCOL</div>
+    <div class="auth-tagline">Enlist. Commit. Execute.</div>
+
+    <form method="post" novalidate>
+      {% csrf_token %}
+
+      {% for field in form %}
+      <div class="form-group">
+        <label class="form-label">{{ field.label }}</label>
+        {{ field }}
+        {% if field.errors %}
+          <div class="form-error">{{ field.errors.0 }}</div>
+        {% endif %}
+      </div>
+      {% endfor %}
+
+      <button type="submit" class="protocol-submit-btn">
+        ENLIST NOW
+      </button>
+    </form>
+
+    <div class="auth-footer">
+      Already enlisted? <a href="{% url 'login' %}">Initiate Session</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

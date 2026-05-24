@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>{% block title %}PROTOCOL OS{% endblock %}</title>
+  {% load static %}
+  <link rel="stylesheet" href="{% static 'protocol_app/css/protocol.css' %}">
+  {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+  <!-- /* PATH: Background Grid Dots Layer */ -->
+  <div class="bg-grid" aria-hidden="true"></div>
+
+  <!-- /* PATH: Navigation Bar */ -->
+  {% if user.is_authenticated %}
+  <nav class="protocol-nav">
+
+    <!-- Logo -->
+    <a href="{% url 'dashboard' %}" class="nav-logo">PROTOCOL</a>
+
+    <div class="nav-links">
+
+      <!-- HOME icon -->
+      <a href="{% url 'dashboard' %}"
+         class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}"
+         title="Dashboard">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+          <polyline points="9 22 9 12 15 12 15 22"/>
+        </svg>
+        <span class="nav-label">HOME</span>
+      </a>
+
+      <!-- MACRO icon -->
+      <a href="{% url 'global_report' %}"
+         class="nav-link {% if request.resolver_match.url_name == 'global_report' %}active{% endif %}"
+         title="Macro Report">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="20" x2="18" y2="10"/>
+          <line x1="12" y1="20" x2="12" y2="4"/>
+          <line x1="6"  y1="20" x2="6"  y2="14"/>
+        </svg>
+        <span class="nav-label">MACRO</span>
+      </a>
+
+      <!-- LOG icon -->
+      <a href="{% url 'add_report' %}"
+         class="nav-link {% if request.resolver_match.url_name == 'add_report' %}active{% endif %}"
+         title="Log Data">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="12" y1="8" x2="12" y2="16"/>
+          <line x1="8"  y1="12" x2="16" y2="12"/>
+        </svg>
+        <span class="nav-label">LOG</span>
+      </a>
+
+      <!-- EXIT — POST form for true logout -->
+      <!-- /* PATH: Exit Button — POST Logout */ -->
+      <form method="post" action="{% url 'logout' %}" style="display:inline;">
+        {% csrf_token %}
+        <button type="submit" class="nav-link danger" title="Exit Protocol">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
+            <polyline points="16 17 21 12 16 7"/>
+            <line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
+          <span class="nav-label">EXIT</span>
+        </button>
+      </form>
+
+    </div>
+  </nav>
+  {% endif %}
+
+  {% block content %}{% endblock %}
+
+  <!-- Processing Overlay -->
+  <div class="processing-overlay" id="processingOverlay">
+    <div class="processing-logo">PROTOCOL</div>
+    <div class="processing-spinner"></div>
+    <div class="processing-text">PROCESSING DATA...</div>
+  </div>
+
+  <script src="{% static 'protocol_app/js/protocol.js' %}"></script>
+  {% block extra_js %}{% endblock %}
+</body>
+</html>

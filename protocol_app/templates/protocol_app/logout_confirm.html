@@ -1,0 +1,36 @@
+{% extends 'protocol_app/base.html' %}
+{% block title %}PROTOCOL — EXIT{% endblock %}
+
+{% block content %}
+<div class="auth-wrap">
+  <div class="auth-card" style="text-align:center;">
+
+    <!-- /* PATH: Logout Confirm Page — SVG Icon */ -->
+    <div style="margin-bottom:24px;">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none"
+           stroke="#444444" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"
+           style="margin:0 auto;">
+        <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
+        <polyline points="16 17 21 12 16 7"/>
+        <line x1="21" y1="12" x2="9" y2="12"/>
+      </svg>
+    </div>
+
+    <div class="auth-logo">EXIT PROTOCOL</div>
+    <div class="auth-tagline" style="margin-bottom:28px;">
+      Your session will be terminated.
+    </div>
+
+    <form method="post" action="{% url 'logout' %}">
+      {% csrf_token %}
+      <button type="submit" class="protocol-submit-btn">
+        CONFIRM EXIT
+      </button>
+    </form>
+
+    <div class="auth-footer" style="margin-top:16px;">
+      <a href="{% url 'dashboard' %}">← Return to Dashboard</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,54 @@
+{% extends 'protocol_app/base.html' %}
+{% block title %}PROTOCOL — INITIATE{% endblock %}
+
+{% block content %}
+<div class="auth-wrap">
+  <div class="auth-card">
+    <div class="auth-logo">PROTOCOL</div>
+    <div class="auth-tagline">Discipline Operating System</div>
+
+    <form method="post" novalidate>
+      {% csrf_token %}
+
+      <div class="form-group">
+        <label class="form-label">Username</label>
+        <input
+          type="text"
+          name="username"
+          class="protocol-input"
+          placeholder="ENTER CALLSIGN"
+          autocomplete="username"
+          autofocus
+          required
+        >
+        {% if form.username.errors %}
+          <div class="form-error">{{ form.username.errors.0 }}</div>
+        {% endif %}
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input
+          type="password"
+          name="password"
+          class="protocol-input"
+          placeholder="••••••••••"
+          autocomplete="current-password"
+          required
+        >
+        {% if form.non_field_errors %}
+          <div class="form-error">{{ form.non_field_errors.0 }}</div>
+        {% endif %}
+      </div>
+
+      <button type="submit" class="protocol-submit-btn">
+        INITIATE SESSION
+      </button>
+    </form>
+
+    <div class="auth-footer">
+      No access? <a href="{% url 'register' %}">Request Protocol Entry</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

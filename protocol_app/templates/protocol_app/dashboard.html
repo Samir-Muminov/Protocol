@@ -1,0 +1,456 @@
+{% extends 'protocol_app/base.html' %}
+{% block title %}PROTOCOL — DASHBOARD{% endblock %}
+
+{% block content %}
+<div class="protocol-wrap">
+
+  <!-- /* PATH: Section 1 — Hero / Initiation */ -->
+  <section class="hero-section">
+    <h1 class="hero-headline">ARE YOU READY<br>FOR THE PROTOCOL?</h1>
+
+    {% if global_quote %}
+    <div class="quote-card">
+      <p class="quote-text {{ global_quote.font_style }}">
+        {{ global_quote.text }}
+      </p>
+    </div>
+    {% endif %}
+  </section>
+
+  <!-- /* PATH: Section 2 — Triple Bar Dashboard */ -->
+  <section class="triple-bar">
+
+    <!-- BAR 1: RANK & SCORE -->
+    <!-- /* PATH: Bar 1 — Rank Card */ -->
+    <div class="protocol-card rank-bar {% if today_report %}{{ today_report.score_color_class }}{% endif %}">
+      {% if today_report %}
+
+        <div class="rank-icon-wrap">
+          {{ today_report.rank_icon_svg|safe }}
+        </div>
+        <div class="rank-label">TODAY'S RANK</div>
+        <div class="rank-name">{{ today_report.rank }}</div>
+
+        <div class="score-bar-wrap">
+          <div class="score-bar-labels">
+            <span class="score-bar-label-left">0</span>
+            <span class="score-bar-label-right">10</span>
+          </div>
+          <div class="score-bar-track">
+            <div
+              class="score-bar-fill"
+              id="scoreFill"
+              style="width: 0%"
+              data-target="{{ today_report.discipline_score|floatformat:1 }}"
+            ></div>
+          </div>
+          <div class="score-value-display">
+            {{ today_report.discipline_score|floatformat:2 }}
+          </div>
+          <div class="score-subtext">DISCIPLINE INDEX</div>
+        </div>
+
+      {% else %}
+
+        <!-- Empty rank state -->
+        <div class="rank-icon-wrap">
+          <!-- /* PATH: Bar 1 — Empty Rank SVG */ -->
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none"
+               stroke="#333333" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+        </div>
+        <div class="rank-label">TODAY'S RANK</div>
+        <div class="rank-name" style="color:var(--text-dim);">UNRANKED</div>
+
+        <!-- Clean empty bar — no broken layout -->
+        <div class="score-bar-wrap">
+          <div class="score-bar-labels">
+            <span class="score-bar-label-left">0</span>
+            <span class="score-bar-label-right">10</span>
+          </div>
+          <div class="score-bar-track">
+            <div class="score-bar-fill" id="scoreFill" style="width:0%"></div>
+          </div>
+          <div class="score-value-display" style="color:var(--text-dim);">—</div>
+          <div class="score-subtext">NO DATA LOGGED</div>
+        </div>
+
+        <div class="no-report-state" style="margin-top:16px;">
+          <button class="protocol-submit-btn" onclick="openModal()">
+            LOG TODAY
+          </button>
+        </div>
+
+      {% endif %}
+    </div>
+
+    <!-- BAR 2: DATE / IDENTITY -->
+    <!-- /* PATH: Bar 2 — Date Card */ -->
+    <div class="protocol-card date-bar">
+      <div class="date-month">{{ month_name }}</div>
+      <div class="date-number">{{ today.day }}</div>
+      <div class="date-weekday">{{ weekday }}</div>
+      <div class="hardcore-reminder">
+        YESTERDAY YOU SAID TOMORROW.<br>JUST DO IT.
+      </div>
+    </div>
+
+    <!-- BAR 3: STATISTICS GRID -->
+    <!-- /* PATH: Bar 3 — Stats Grid */ -->
+    <div class="protocol-card stats-bar">
+      <div class="stats-bar-title">TODAY'S METRICS</div>
+
+      {% if today_report %}
+
+        <!-- IT / MATH — target now 1h -->
+        <!-- /* PATH: Bar 3 — IT Row */ -->
+        <div class="stat-row">
+          <div class="stat-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                 stroke="#A0A0A0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+              <line x1="8" y1="21" x2="16" y2="21"/>
+              <line x1="12" y1="17" x2="12" y2="21"/>
+            </svg>
+          </div>
+          <div class="stat-info">
+            <div class="stat-header">
+              <span class="stat-name">IT / MATH</span>
+              <span class="stat-value">
+                {{ today_report.it_math_hours|floatformat:1 }}h
+                <span class="stat-target">/ 1h</span>
+              </span>
+            </div>
+            <div class="mini-bar-track">
+              <div class="mini-bar-fill it" id="barIT"
+                   style="width:0%" data-target="{{ today_report.it_progress_pct }}"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- BOOKS -->
+        <!-- /* PATH: Bar 3 — Books Row */ -->
+        <div class="stat-row">
+          <div class="stat-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                 stroke="#A0A0A0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/>
+              <path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/>
+            </svg>
+          </div>
+          <div class="stat-info">
+            <div class="stat-header">
+              <span class="stat-name">BOOKS</span>
+              <span class="stat-value">
+                {{ today_report.pages_read }}pp
+                <span class="stat-target">/ 50pp</span>
+              </span>
+            </div>
+            <div class="mini-bar-track">
+              <div class="mini-bar-fill books" id="barBooks"
+                   style="width:0%" data-target="{{ today_report.books_progress_pct }}"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- KCAL -->
+        <!-- /* PATH: Bar 3 — Kcal Row */ -->
+        <div class="stat-row">
+          <div class="stat-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                 stroke="#A0A0A0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+            </svg>
+          </div>
+          <div class="stat-info">
+            <div class="stat-header">
+              <span class="stat-name">KCAL BURNED</span>
+              <span class="stat-value">
+                {{ today_report.calories }}
+                <span class="stat-target">/ 500</span>
+              </span>
+            </div>
+            <div class="mini-bar-track">
+              <div class="mini-bar-fill kcal" id="barKcal"
+                   style="width:0%" data-target="{{ today_report.kcal_progress_pct }}"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- KM -->
+        <!-- /* PATH: Bar 3 — KM Row */ -->
+        <div class="stat-row">
+          <div class="stat-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                 stroke="#A0A0A0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <polyline points="12 6 12 12 16 14"/>
+            </svg>
+          </div>
+          <div class="stat-info">
+            <div class="stat-header">
+              <span class="stat-name">DISTANCE</span>
+              <span class="stat-value">
+                {{ today_report.distance_km|floatformat:1 }}km
+                <span class="stat-target">/ 5km</span>
+              </span>
+            </div>
+            <div class="mini-bar-track">
+              <div class="mini-bar-fill km" id="barKm"
+                   style="width:0%" data-target="{{ today_report.km_progress_pct }}"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+        <button class="add-report-fab" onclick="openModal()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+          </svg>
+          UPDATE TODAY'S LOG
+        </button>
+
+      {% else %}
+
+        <!-- /* PATH: Bar 3 — Empty Stats (clean zero state) */ -->
+        {% for row in empty_stat_rows %}{% endfor %}
+
+        <!-- Static empty rows — professional zero state -->
+        {% with "IT/MATH BOOKS KCAL DISTANCE" as titles %}
+          {% for stat in titles.split %}
+            <div class="stat-row">
+              <div class="stat-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                     stroke="#2a2a2a" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="12" y1="17" x2="12" y2="21"/>
+                </svg>
+              </div>
+              <div class="stat-info">
+                <span class="stat-label">{{ stat }}</span>
+                <div class="mini-bar-bg">
+                  <div class="mini-bar-fill" style="width: 0%;"></div>
+                </div>
+              </div>
+            </div>
+          {% endfor %}
+        {% endwith %}
+
+        <!-- Render 4 clean empty rows -->
+        <div class="stat-row">
+          <div class="stat-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                 stroke="#2a2a2a" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="12" y1="17" x2="12" y2="21"/>
+            </svg>
+          </div>
+          <div class="stat-info">
+            <div class="stat-header">
+              <span class="stat-name" style="color:var(--text-dim);">IT / MATH</span>
+              <span class="stat-value" style="color:var(--text-dim);">—<span class="stat-target"> / 1h</span></span>
+            </div>
+            <div class="mini-bar-track"><div class="mini-bar-fill" style="width:0%;background:var(--border);"></div></div>
+          </div>
+        </div>
+
+        <div class="stat-row">
+          <div class="stat-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                 stroke="#2a2a2a" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/>
+            </svg>
+          </div>
+          <div class="stat-info">
+            <div class="stat-header">
+              <span class="stat-name" style="color:var(--text-dim);">BOOKS</span>
+              <span class="stat-value" style="color:var(--text-dim);">—<span class="stat-target"> / 50pp</span></span>
+            </div>
+            <div class="mini-bar-track"><div class="mini-bar-fill" style="width:0%;background:var(--border);"></div></div>
+          </div>
+        </div>
+
+        <div class="stat-row">
+          <div class="stat-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                 stroke="#2a2a2a" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+            </svg>
+          </div>
+          <div class="stat-info">
+            <div class="stat-header">
+              <span class="stat-name" style="color:var(--text-dim);">KCAL BURNED</span>
+              <span class="stat-value" style="color:var(--text-dim);">—<span class="stat-target"> / 500</span></span>
+            </div>
+            <div class="mini-bar-track"><div class="mini-bar-fill" style="width:0%;background:var(--border);"></div></div>
+          </div>
+        </div>
+
+        <div class="stat-row">
+          <div class="stat-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                 stroke="#2a2a2a" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+            </svg>
+          </div>
+          <div class="stat-info">
+            <div class="stat-header">
+              <span class="stat-name" style="color:var(--text-dim);">DISTANCE</span>
+              <span class="stat-value" style="color:var(--text-dim);">—<span class="stat-target"> / 5km</span></span>
+            </div>
+            <div class="mini-bar-track"><div class="mini-bar-fill" style="width:0%;background:var(--border);"></div></div>
+          </div>
+        </div>
+
+      {% endif %}
+    </div>
+
+  </section>
+
+  <!-- /* PATH: Protocol Shadow */ -->
+  {% if shadow.has_data %}
+  <section class="shadow-section">
+    <div class="shadow-card">
+      <div class="shadow-label">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none"
+             stroke="#7744cc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+             style="display:inline;vertical-align:middle;margin-right:6px;">
+          <circle cx="12" cy="12" r="10"/>
+          <polyline points="12 6 12 12 16 14"/>
+        </svg>
+        PROTOCOL SHADOW — 180-DAY PROJECTION
+      </div>
+      <p class="shadow-message">{{ shadow.message }}</p>
+      <div class="shadow-stats">
+        <div class="shadow-stat">
+          <span class="shadow-stat-val">{{ shadow.proj_it }}h</span>
+          <span class="shadow-stat-label">IT Hours</span>
+        </div>
+        <div class="shadow-stat">
+          <span class="shadow-stat-val">{{ shadow.proj_pages }}</span>
+          <span class="shadow-stat-label">Pages</span>
+        </div>
+        <div class="shadow-stat">
+          <span class="shadow-stat-val">{{ shadow.proj_km }}km</span>
+          <span class="shadow-stat-label">Distance</span>
+        </div>
+        <div class="shadow-stat">
+          <span class="shadow-stat-val">{{ shadow.proj_kcal }}</span>
+          <span class="shadow-stat-label">Kcal</span>
+        </div>
+      </div>
+    </div>
+  </section>
+  {% endif %}
+
+  <!-- /* PATH: Section 3 — Calendar */ -->
+  <section class="calendar-section">
+    <div class="protocol-card">
+      <div class="calendar-header">
+        <span class="calendar-section-label">WEEKLY HEATMAP</span>
+        <button class="calendar-expand-btn" onclick="openCalendar()">EXPAND ↗</button>
+      </div>
+      <div class="week-strip">
+        {% for day in week_data %}
+        <div class="week-day-cell {% if day.is_today %}is-today{% endif %}"
+             onclick="openCalendar('{{ day.date_str }}')"
+             title="{{ day.date_str }}">
+          <span class="week-day-name">{{ day.day_name|slice:":2" }}</span>
+          <span class="week-day-num">{{ day.date.day }}</span>
+          <div class="heat-dot {{ day.dot_class }}"></div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+  <!-- /* PATH: FAB — Add Report */ -->
+  <button class="add-report-fab mt-12" onclick="openModal()">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"/>
+      <line x1="12" y1="8" x2="12" y2="16"/>
+      <line x1="8" y1="12" x2="16" y2="12"/>
+    </svg>
+    INPUT PROTOCOL DATA
+  </button>
+
+</div>
+
+<!-- /* PATH: Calendar Overlay */ -->
+<div class="calendar-overlay" id="calendarOverlay">
+  <div class="cal-overlay-header">
+    <div class="cal-overlay-title" id="calMonthTitle">— — —</div>
+    <div class="cal-nav-btns">
+      <button class="cal-nav-btn" onclick="calNavigate(-1)">‹</button>
+      <button class="cal-nav-btn" onclick="calNavigate(1)">›</button>
+    </div>
+    <button class="cal-close-btn" onclick="closeCalendar()">✕</button>
+  </div>
+  <div class="cal-overlay-body">
+    <div class="cal-weekday-labels">
+      <div class="cal-weekday-label">MON</div>
+      <div class="cal-weekday-label">TUE</div>
+      <div class="cal-weekday-label">WED</div>
+      <div class="cal-weekday-label">THU</div>
+      <div class="cal-weekday-label">FRI</div>
+      <div class="cal-weekday-label">SAT</div>
+      <div class="cal-weekday-label">SUN</div>
+    </div>
+    <div class="cal-grid" id="calGrid"></div>
+  </div>
+</div>
+
+<!-- /* PATH: Day Card Panel */ -->
+<div class="day-card-panel" id="dayCardPanel">
+  <div class="day-card-drag-handle"></div>
+  <button class="day-card-close" onclick="closeDayCard()">✕</button>
+  <div id="dayCardContent"></div>
+</div>
+
+<!-- /* PATH: Report Modal */ -->
+<div class="protocol-modal-bg" id="reportModalBg" onclick="handleModalBgClick(event)">
+  <div class="protocol-modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">INPUT PROTOCOL</div>
+    <div class="modal-subtitle">LOG YOUR DISCIPLINE DATA</div>
+    <form method="post" action="{% url 'add_report' %}" id="reportForm"
+          onsubmit="handleFormSubmit(event)">
+      {% csrf_token %}
+      <div class="form-group">
+        <label class="form-label">Date</label>
+        {{ form.date }}
+      </div>
+      <div class="form-group">
+        <label class="form-label">IT / Math Hours</label>
+        {{ form.it_math_hours }}
+        <div class="input-hint">Target: 1h</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Pages Read</label>
+        {{ form.pages_read }}
+        <div class="input-hint">Target: 50 pages</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Calories Burned</label>
+        {{ form.calories }}
+        <div class="input-hint">Target: 500 kcal</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Distance (km)</label>
+        {{ form.distance_km }}
+        <div class="input-hint">Target: 5 km</div>
+      </div>
+      <button type="submit" class="protocol-submit-btn">COMMIT TO PROTOCOL</button>
+    </form>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>const TODAY_DATE = '{{ today|date:"Y-m-d" }}';</script>
+{% endblock %}

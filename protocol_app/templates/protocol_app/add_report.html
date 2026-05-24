@@ -1,0 +1,118 @@
+{% extends 'protocol_app/base.html' %}
+{% block title %}PROTOCOL — LOG DATA{% endblock %}
+
+{% block content %}
+<div class="add-report-wrap">
+
+  <div class="page-header">
+    <div class="page-eyebrow">⬡ INPUT PROTOCOL</div>
+    <h1 class="page-title">
+      LOG<br>YOUR DATA
+    </h1>
+  </div>
+
+  {% if global_quote %}
+  <div class="quote-card mb-16">
+    <p class="quote-text {{ global_quote.font_style }}">{{ global_quote.text }}</p>
+  </div>
+  {% endif %}
+
+  <div class="protocol-card">
+    <form method="post" novalidate onsubmit="showProcessing()">
+      {% csrf_token %}
+
+      <div class="form-group">
+        <label class="form-label">Date</label>
+        {{ form.date }}
+        {% if form.date.errors %}
+          <div class="form-error">{{ form.date.errors.0 }}</div>
+        {% endif %}
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="form-group">
+        <label class="form-label">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A0A0A0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:8px; vertical-align:text-bottom;">
+            <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
+          </svg>IT / MATH HOURS
+        </label>
+        {{ form.it_math_hours }}
+        <div class="input-hint">Target: 5h — Under 2h triggers a -2 score penalty</div>
+        {% if form.it_math_hours.errors %}
+          <div class="form-error">{{ form.it_math_hours.errors.0 }}</div>
+        {% endif %}
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A0A0A0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:8px; vertical-align:text-bottom;">
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+          </svg>PAGES READ
+        </label>
+        {{ form.pages_read }}
+        <div class="input-hint">Target: 50 pages — Zero = Relentless Penalty (cap at 4.0)</div>
+        {% if form.pages_read.errors %}
+          <div class="form-error">{{ form.pages_read.errors.0 }}</div>
+        {% endif %}
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A0A0A0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:8px; vertical-align:text-bottom;">
+            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
+          </svg>CALORIES BURNED
+        </label>
+        {{ form.calories }}
+        <div class="input-hint">Target: 500 kcal</div>
+        {% if form.calories.errors %}
+          <div class="form-error">{{ form.calories.errors.0 }}</div>
+        {% endif %}
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A0A0A0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:8px; vertical-align:text-bottom;">
+            <circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline>
+          </svg>DISTANCE (KM)
+        </label>
+        {{ form.distance_km }}
+        <div class="input-hint">Target: 5 km</div>
+        {% if form.distance_km.errors %}
+          <div class="form-error">{{ form.distance_km.errors.0 }}</div>
+        {% endif %}
+      </div>
+
+      <div class="divider"></div>
+
+      <div style="background: rgba(139,0,0,0.08); border: 1px solid rgba(139,0,0,0.2); border-radius: 12px; padding: 14px 16px; margin-bottom: 20px;">
+        <p style="font-family: var(--font-head); font-size: 9px; letter-spacing: 2px; color: #cc2200; margin-bottom: 6px;">
+          ⚠ RELENTLESS PENALTY ACTIVE
+        </p>
+        <p style="font-size: 11px; color: var(--text-secondary); line-height: 1.6;">
+          Any metric at zero caps your score at 4.0 (Beginner), regardless of other performance.
+          The Protocol demands completeness.
+        </p>
+      </div>
+
+      <button type="submit" class="protocol-submit-btn">
+        COMMIT TO PROTOCOL
+      </button>
+    </form>
+  </div>
+
+  <div style="text-align:center; margin-top:16px;">
+    <a href="{% url 'dashboard' %}" class="nav-link">← RETURN TO DASHBOARD</a>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  function showProcessing() {
+    document.getElementById('processingOverlay').classList.add('active');
+  }
+</script>
+{% endblock %}

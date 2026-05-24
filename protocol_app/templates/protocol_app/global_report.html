@@ -1,0 +1,236 @@
+{% extends 'protocol_app/base.html' %}
+{% block title %}PROTOCOL — MACRO VIEW{% endblock %}
+
+{% block content %}
+<div class="global-wrap">
+
+  <div class="page-header">
+    <div class="page-eyebrow">⬡ MACRO INTELLIGENCE</div>
+    <h1 class="page-title">GLOBAL<br>REPORT</h1>
+  </div>
+
+  <!-- Period tabs -->
+<div class="period-tabs">
+    {% for key, label in periods.items %}
+      <a href="?period={{ key }}" class="period-tab {% if period == key %}active{% endif %}">
+        {{ label }}
+      </a>
+    {% endfor %}
+  </div>
+
+  {% if report_count > 0 %}
+
+  <!-- Global Verdict Card -->
+  <div class="global-verdict-card {% if avg_score < 4 %}score-low{% elif avg_score < 7.5 %}score-mid{% else %}score-high{% endif %}">
+    <div class="global-score-display
+      {% if avg_score < 4 %}score-low{% elif avg_score < 7.5 %}score-mid{% else %}score-high{% endif %}
+    ">
+      <span class="{% if avg_score >= 8 %}score-high{% endif %}" style="
+        {% if avg_score >= 8 %}
+          background: var(--grad-score-high);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+        {% elif avg_score >= 4 %}
+          color: #00bcd4;
+        {% else %}
+          color: #cc2200;
+        {% endif %}
+        font-family: var(--font-head);
+        font-size: clamp(56px, 16vw, 80px);
+        font-weight: 900;
+        display: block;
+      ">
+        {{ avg_score }}
+      </span>
+    </div>
+    <div style="font-family:var(--font-head);font-size:9px;letter-spacing:3px;color:var(--text-secondary);margin-bottom:12px;">
+      AVG DISCIPLINE INDEX — {{ period_label|upper }} ({{ report_count }} DAYS LOGGED)
+    </div>
+    <p class="global-verdict-text">{{ comparison }}</p>
+  </div>
+
+  <!-- Trend Chart -->
+  <div class="trend-chart-wrap">
+    <div class="trend-chart-label">⬡ DISCIPLINE TREND</div>
+    <svg id="trend-svg" viewBox="0 0 400 120" preserveAspectRatio="none">
+      <!-- Rendered by JS from trend_data -->
+    </svg>
+  </div>
+
+  <!-- Summary Totals -->
+  <div class="summary-grid">
+    <div class="summary-cell">
+      <span class="summary-val">{{ total_it|floatformat:1 }}h</span>
+      <span class="summary-lab">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A0A0A0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"    style="margin-right:6px; vertical-align:text-bottom;">
+          <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
+        </svg>IT HOURS
+      </span>
+    </div>
+
+    <div class="summary-cell">
+      <span class="summary-val">{{ total_pages }}</span>
+      <span class="summary-lab">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A0A0A0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"    style="margin-right:6px; vertical-align:text-bottom;">
+          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+        </svg>PAGES
+      </span>
+    </div>
+
+    <div class="summary-cell">
+      <span class="summary-val">{{ total_kcal }}</span>
+      <span class="summary-lab">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A0A0A0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"    style="margin-right:6px; vertical-align:text-bottom;">
+          <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
+        </svg>KCAL
+      </span>
+    </div>
+
+    <div class="summary-cell">
+      <span class="summary-val">{{ total_km }}km</span>
+      <span class="summary-lab">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A0A0A0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"    style="margin-right:6px; vertical-align:text-bottom;">
+          <circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline>
+        </svg>DISTANCE
+      </span>
+    </div>
+  </div>
+  
+
+  <!-- Report List -->
+  <div class="protocol-card">
+    <div class="stats-bar-title">⬡ DAILY BREAKDOWN</div>
+    {% for r in reports reversed %}
+    <div style="
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+    ">
+      <div>
+        <div style="font-family:var(--font-head);font-size:10px;color:var(--text-secondary);letter-spacing:1px;">
+          {{ r.date|date:"D, M j" }}
+        </div>
+        <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">
+          {{ r.rank_icon }} {{ r.rank }}
+        </div>
+      </div>
+      <div style="
+        font-family:var(--font-head);
+        font-size:22px;
+        font-weight:900;
+        {% if r.discipline_score >= 7.5 %}
+          background: var(--grad-score-high);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+        {% elif r.discipline_score >= 4 %}
+          color: #00bcd4;
+        {% else %}
+          color: #cc2200;
+        {% endif %}
+      ">
+        {{ r.discipline_score }}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  {% else %}
+  <!-- Empty state -->
+  <div class="protocol-card text-center" style="padding: 48px 28px;">
+    <div style="font-size:48px;margin-bottom:16px;">📊</div>
+    <div style="font-family:var(--font-head);font-size:12px;letter-spacing:3px;color:var(--text-secondary);margin-bottom:8px;">
+      NO DATA FOR THIS PERIOD
+    </div>
+    <p style="font-size:13px;color:var(--text-dim);line-height:1.7;margin-bottom:24px;">
+      The Protocol has no records for {{ period_label|lower }}.<br>
+      Start logging to unlock your Macro Intelligence.
+    </p>
+    <a href="{% url 'add_report' %}" class="protocol-submit-btn" style="display:block;padding:16px;text-align:center;">
+      LOG FIRST ENTRY
+    </a>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  const TREND_DATA = {{ trend_data|safe }};
+
+  (function renderTrendChart() {
+    const svg    = document.getElementById('trend-svg');
+    if (!svg || !TREND_DATA.length) return;
+
+    const W = 400, H = 120;
+    const PAD = { top: 16, right: 12, bottom: 28, left: 28 };
+    const chartW = W - PAD.left - PAD.right;
+    const chartH = H - PAD.top  - PAD.bottom;
+
+    const scores = TREND_DATA.map(d => d.score);
+    const minS   = Math.max(0,  Math.min(...scores) - 1);
+    const maxS   = Math.min(10, Math.max(...scores) + 1);
+
+    const xScale = i  => PAD.left + (i / Math.max(TREND_DATA.length - 1, 1)) * chartW;
+    const yScale = s  => PAD.top  + chartH - ((s - minS) / (maxS - minS || 1)) * chartH;
+
+    let pathD = TREND_DATA.map((d, i) =>
+      `${i === 0 ? 'M' : 'L'} ${xScale(i).toFixed(1)} ${yScale(d.score).toFixed(1)}`
+    ).join(' ');
+
+    // Filled area
+    const areaD = pathD
+      + ` L ${xScale(TREND_DATA.length - 1).toFixed(1)} ${(PAD.top + chartH).toFixed(1)}`
+      + ` L ${xScale(0).toFixed(1)} ${(PAD.top + chartH).toFixed(1)} Z`;
+
+    svg.innerHTML = `
+      <defs>
+        <linearGradient id="trendGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%"   stop-color="#00bcd4" stop-opacity="0.3"/>
+          <stop offset="100%" stop-color="#00bcd4" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+
+      <!-- Grid lines -->
+      ${[0,2,4,6,8,10].map(v => {
+        if (v < minS || v > maxS) return '';
+        const y = yScale(v).toFixed(1);
+        return `
+          <line x1="${PAD.left}" y1="${y}" x2="${W - PAD.right}" y2="${y}"
+            stroke="rgba(255,255,255,0.05)" stroke-width="1"/>
+          <text x="${PAD.left - 4}" y="${y}" fill="rgba(255,255,255,0.2)"
+            font-size="8" text-anchor="end" dominant-baseline="middle"
+            font-family="'Orbitron', sans-serif">${v}</text>
+        `;
+      }).join('')}
+
+      <!-- Area fill -->
+      <path d="${areaD}" fill="url(#trendGrad)"/>
+
+      <!-- Line -->
+      <path d="${pathD}" fill="none" stroke="#00bcd4" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round"/>
+
+      <!-- Dots + labels -->
+      ${TREND_DATA.map((d, i) => {
+        const cx = xScale(i).toFixed(1);
+        const cy = yScale(d.score).toFixed(1);
+        const color = d.score >= 7.5 ? '#bfa020' : d.score >= 4 ? '#00bcd4' : '#8b0000';
+        return `
+          <circle cx="${cx}" cy="${cy}" r="3" fill="${color}" stroke="#000" stroke-width="1"/>
+          ${TREND_DATA.length <= 14 ? `
+            <text x="${cx}" y="${H - 6}" fill="rgba(255,255,255,0.3)"
+              font-size="7" text-anchor="middle"
+              font-family="'Orbitron', sans-serif">${d.date}</text>
+          ` : ''}
+        `;
+      }).join('')}
+    `;
+  })();
+</script>
+{% endblock %}
