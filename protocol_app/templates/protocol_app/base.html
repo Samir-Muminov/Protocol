@@ -80,6 +80,16 @@
     </div>
   </nav>
   {% endif %}
+  <!-- /* PATH: Streak Counter — Signature floating pill */ -->
+  {% if user.is_authenticated %}
+  <div class="streak-counter" id="streakCounter">
+    <span class="streak-fire">🔥</span>
+    <div class="streak-text">
+      <span class="streak-number" id="streakNumber">—</span>
+      <span class="streak-label">Day Streak</span>
+    </div>
+  </div>
+  {% endif %}
 
   {% block content %}{% endblock %}
 

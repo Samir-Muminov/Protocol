@@ -129,9 +129,19 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         # ── Form for modal ────────────────────────────────────────────────────
         initial_date = {'date': today}
         form = DailyReportForm(initial=initial_date)
-
+        # /* PATH: Streak Calculator */
+        streak = 0
+        check_date = today
+        while True:
+            if DailyReport.objects.filter(user=user, date=check_date).exists():
+                streak += 1
+                check_date -= datetime.timedelta(days=1)
+            else:
+                break
+        ctx['streak'] = streak
         ctx.update({
             'today':        today,
+            'streak':       streak,
             'today_report': today_report,
             'week_data':    week_data,
             'shadow':       shadow,
@@ -225,24 +235,31 @@ class DayCardAjaxView(LoginRequiredMixin, View):
 
         try:
             report = DailyReport.objects.get(user=request.user, date=d)
+            # /* PATH: AJAX — Day Card data dict (Phase 2 scoring) */
             data = {
-                'exists':       True,
-                'date':         date,
-                'date_display': d.strftime('%B %d, %Y').upper(),
-                'it_hours':     report.it_math_hours,
-                'pages':        report.pages_read,
-                'calories':     report.calories,
-                'distance_km':  report.distance_km,
-                'score':        report.discipline_score,
-                'rank':         report.rank,
-                'rank_icon':    report.rank_icon,
-                'ai_comment':   report.ai_comment,
-                'it_pct':       report.it_progress_pct,
-                'books_pct':    report.books_progress_pct,
-                'kcal_pct':     report.kcal_progress_pct,
-                'km_pct':       report.km_progress_pct,
-                'color_class':  report.score_color_class,
-            }
+                'exists':          True,
+                'date':            date,
+                'date_display':    d.strftime('%B %d, %Y').upper(),
+                'it_hours':        report.it_math_hours,
+                'pages':           report.pages_read,
+                'calories':        report.calories,
+                'distance_km':     report.distance_km,
+                'score':           report.discipline_score,
+                'rank':            report.rank,
+                'rank_slug':       report.rank_slug,
+                'rank_image_url':  report.rank_image_url,
+                'rank_progress':   report.rank_progress_pct,
+                'next_rank':       report.next_rank_data[1] if report.next_rank_data else 'MAX',
+                'ai_comment':      report.ai_comment,
+                'it_pct':          report.it_progress_pct,
+                'books_pct':       report.books_progress_pct,
+                'kcal_pct':        report.kcal_progress_pct,
+                'km_pct':          report.km_progress_pct,
+                'color_class':     report.score_color_class,
+                'it_pts':          report.it_points,
+                'books_pts':       report.books_points,
+                'kcal_pts':        report.kcal_points,           
+                }
         except DailyReport.DoesNotExist:
             data = {
                 'exists':       False,
@@ -412,13 +429,14 @@ class GlobalReportView(LoginRequiredMixin, TemplateView):
 # HELPER FUNCTIONS
 # ══════════════════════════════════════════════════════════════════════════════
 
+# /* PATH: Helper — Score to dot class (updated for 22.75 scale) */
 def _score_to_dot_class(score):
-    """Maps a discipline_score to a CSS dot class for the heatmap."""
+    """Maps discipline_score (0–22.75) to a CSS heatmap dot class."""
     if score is None:
         return 'dot-empty'
-    if score < 4.0:
+    if score < 5.84:
         return 'dot-low'
-    if score < 7.5:
+    if score < 13.08:
         return 'dot-mid'
     return 'dot-high'
 
@@ -462,22 +480,27 @@ def _calculate_protocol_shadow(user, today):
     avg_km    = sum(r.distance_km   for r in recent) / LOOKBACK
     avg_score = _average_score(recent)
 
+        # /* PATH: Protocol Shadow — updated for 22.75 scale */
     proj_it    = avg_it    * DAYS_AHEAD
     proj_pages = avg_pages * DAYS_AHEAD
     proj_kcal  = avg_kcal  * DAYS_AHEAD
     proj_km    = avg_km    * DAYS_AHEAD
 
-    # Rank projection
-    if avg_score < 4.0:
-        rank_proj = "still a Beginner"
-    elif avg_score < 6.0:
-        rank_proj = "reaching Intermediate II"
-    elif avg_score < 7.5:
-        rank_proj = "breaking into Elite"
-    elif avg_score < 9.0:
+    # Rank projection based on avg score on new 22.75 scale
+    if avg_score < 5.84:
+        rank_proj = "still in Novice territory"
+    elif avg_score < 9.46:
+        rank_proj = "reaching Apprentice III"
+    elif avg_score < 13.08:
+        rank_proj = "breaking into Intermediate"
+    elif avg_score < 16.71:
+        rank_proj = "climbing Advanced ranks"
+    elif avg_score < 19.13:
         rank_proj = "approaching Master"
+    elif avg_score < 22.75:
+        rank_proj = "knocking on Protocolmaxxer's door"
     else:
-        rank_proj = "standing at Master — the apex"
+        rank_proj = "a confirmed Protocolmaxxer — the apex"
 
     return {
         'has_data':    True,

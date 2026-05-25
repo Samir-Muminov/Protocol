@@ -7,18 +7,95 @@
     <div class="auth-logo">PROTOCOL</div>
     <div class="auth-tagline">Enlist. Commit. Execute.</div>
 
+    <!-- /* PATH: Bug 2 Fix — Clean register form, no artifacts */ -->
     <form method="post" novalidate>
       {% csrf_token %}
 
-      {% for field in form %}
+      <!-- Username -->
       <div class="form-group">
-        <label class="form-label">{{ field.label }}</label>
-        {{ field }}
-        {% if field.errors %}
-          <div class="form-error">{{ field.errors.0 }}</div>
+        <label class="form-label" for="id_username">Username</label>
+        <input
+          type="text"
+          name="username"
+          id="id_username"
+          class="protocol-input"
+          placeholder="CHOOSE CALLSIGN"
+          maxlength="150"
+          autocomplete="username"
+          autofocus
+          required
+          value="{{ form.username.value|default:'' }}"
+        >
+        {% if form.username.errors %}
+          {% for error in form.username.errors %}
+            <div class="form-error">{{ error }}</div>
+          {% endfor %}
         {% endif %}
       </div>
-      {% endfor %}
+
+      <!-- Email -->
+      <div class="form-group">
+        <label class="form-label" for="id_email">Email</label>
+        <input
+          type="email"
+          name="email"
+          id="id_email"
+          class="protocol-input"
+          placeholder="YOUR@EMAIL.COM"
+          autocomplete="email"
+          value="{{ form.email.value|default:'' }}"
+        >
+        {% if form.email.errors %}
+          {% for error in form.email.errors %}
+            <div class="form-error">{{ error }}</div>
+          {% endfor %}
+        {% endif %}
+      </div>
+
+      <!-- Password 1 -->
+      <div class="form-group">
+        <label class="form-label" for="id_password1">Password</label>
+        <input
+          type="password"
+          name="password1"
+          id="id_password1"
+          class="protocol-input"
+          placeholder="••••••••••"
+          autocomplete="new-password"
+          required
+        >
+        {% if form.password1.errors %}
+          {% for error in form.password1.errors %}
+            <div class="form-error">{{ error }}</div>
+          {% endfor %}
+        {% endif %}
+      </div>
+
+      <!-- Password 2 -->
+      <div class="form-group">
+        <label class="form-label" for="id_password2">Confirm Password</label>
+        <input
+          type="password"
+          name="password2"
+          id="id_password2"
+          class="protocol-input"
+          placeholder="••••••••••"
+          autocomplete="new-password"
+          required
+        >
+        {% if form.password2.errors %}
+          {% for error in form.password2.errors %}
+            <div class="form-error">{{ error }}</div>
+          {% endfor %}
+        {% endif %}
+      </div>
+
+      <!-- Non-field errors (e.g. passwords don't match) -->
+      {% if form.non_field_errors %}
+        {% for error in form.non_field_errors %}
+          <div class="form-error" style="margin-bottom:12px;">{{ error }}</div>
+        {% endfor %}
+      {% endif %}
 
       <button type="submit" class="protocol-submit-btn">
         ENLIST NOW
