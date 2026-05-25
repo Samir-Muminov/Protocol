@@ -1,0 +1,79 @@
+{% extends 'protocol_app/base.html' %}
+{% block title %}PROTOCOL — DELETE REPORT{% endblock %}
+
+{% block content %}
+<div class="auth-wrap">
+  <div class="auth-card" style="text-align:center;">
+
+    <!-- Warning icon -->
+    <div style="margin-bottom:20px;">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none"
+           stroke="#C0392B" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"
+           style="margin:0 auto;">
+        <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+        <line x1="12" y1="9" x2="12" y2="13"/>
+        <line x1="12" y1="17" x2="12.01" y2="17"/>
+      </svg>
+    </div>
+
+    <div class="auth-logo">DELETE REPORT</div>
+    <div class="auth-tagline" style="margin-bottom:8px;">
+      {{ report.date|date:"F j, Y"|upper }}
+    </div>
+
+    <p style="
+      font-size:13px;
+      color:var(--ink-3);
+      line-height:1.6;
+      margin-bottom:8px;
+    ">
+      Score: <strong style="font-family:var(--font-number);font-size:18px;">
+        {{ report.discipline_score }}</strong> &nbsp;·&nbsp; {{ report.rank }}
+    </p>
+
+    <p style="
+      font-size:12px;
+      color:var(--ink-4);
+      line-height:1.6;
+      margin-bottom:28px;
+    ">
+      This action is permanent.<br>This day's data will be erased from the Protocol.
+    </p>
+
+    <!-- POST form — CSRF protected -->
+    <form method="post" action="{% url 'delete_report' date %}">
+      {% csrf_token %}
+      <button type="submit" style="
+        width:100%;
+        padding:14px;
+        background:#C0392B;
+        border:none;
+        border-radius:var(--r-lg);
+        color:#fff;
+        font-family:var(--font-display);
+        font-size:11px;
+        font-weight:700;
+        letter-spacing:3px;
+        text-transform:uppercase;
+        cursor:pointer;
+        margin-bottom:10px;
+        transition:all 0.2s ease;
+      ">
+        CONFIRM DELETE
+      </button>
+    </form>
+
+    <a href="{% url 'dashboard' %}" style="
+      display:block;
+      padding:12px;
+      font-family:var(--font-display);
+      font-size:10px;
+      font-weight:700;
+      letter-spacing:2px;
+      text-transform:uppercase;
+      color:var(--ink-4);
+    ">← CANCEL</a>
+
+  </div>
+</div>
+{% endblock %}

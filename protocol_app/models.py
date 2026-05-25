@@ -52,8 +52,8 @@ class DailyReport(models.Model):
     # ══════════════════════════════════════════════════════════════════
 
     IT_TARGET       = 1.0     # hours
-    PAGES_TARGET    = 50      # pages
-    KCAL_TARGET     = 500     # calories
+    PAGES_TARGET    = 25      # pages
+    KCAL_TARGET     = 1500     # calories
     KM_TARGET       = 5.0     # km
 
     # Maximum points each category can award

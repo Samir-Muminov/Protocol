@@ -38,7 +38,7 @@
           </svg>IT / MATH HOURS
         </label>
         {{ form.it_math_hours }}
-        <div class="input-hint">Target: 5h — Under 2h triggers a -2 score penalty</div>
+        <div class="input-hint">Target: 1h — Under 1h triggers a -2 score penalty</div>
         {% if form.it_math_hours.errors %}
           <div class="form-error">{{ form.it_math_hours.errors.0 }}</div>
         {% endif %}
@@ -52,7 +52,7 @@
           </svg>PAGES READ
         </label>
         {{ form.pages_read }}
-        <div class="input-hint">Target: 50 pages — Zero = Relentless Penalty (cap at 4.0)</div>
+        <div class="input-hint">Target: 25 pages — Zero = Relentless Penalty (cap at 2.20)</div>
         {% if form.pages_read.errors %}
           <div class="form-error">{{ form.pages_read.errors.0 }}</div>
         {% endif %}
@@ -65,7 +65,7 @@
           </svg>CALORIES BURNED
         </label>
         {{ form.calories }}
-        <div class="input-hint">Target: 500 kcal</div>
+        <div class="input-hint">Target: 1500 kcal</div>
         {% if form.calories.errors %}
           <div class="form-error">{{ form.calories.errors.0 }}</div>
         {% endif %}

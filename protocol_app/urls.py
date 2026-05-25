@@ -22,4 +22,6 @@ urlpatterns = [
 
     # Global reporting
     path('global/',              views.GlobalReportView.as_view(), name='global_report'),
+    # /* PATH: Delete Report URL */
+    path('report/delete/<str:date>/', views.DeleteReportView.as_view(), name='delete_report'),
 ]

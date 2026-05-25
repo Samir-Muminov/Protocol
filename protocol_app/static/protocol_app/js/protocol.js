@@ -466,17 +466,42 @@ function renderDayCard(data) {
 
   // Bug 3 Fix — "EDIT THIS DAY" button built as real DOM element
   /* PATH: Bug 3 Fix — Edit Logged Day Button */
+  /* PATH: Day Card Actions — Edit + Delete buttons */
   const actionsWrap = document.createElement('div');
-  actionsWrap.style.marginTop = '20px';
-  actionsWrap.style.display   = 'flex';
-  actionsWrap.style.gap       = '8px';
+  actionsWrap.style.cssText = 'margin-top:20px;display:flex;gap:8px;';
 
-  const editBtn  = document.createElement('a');
-  editBtn.href   = '/report/add/' + data.date + '/';
+  const editBtn = document.createElement('a');
+  editBtn.href = '/report/add/' + data.date + '/';
   editBtn.className = 'protocol-submit-btn';
-  editBtn.style.cssText = 'display:block;text-align:center;padding:14px;flex:1;';
+  editBtn.style.cssText = 'display:flex;align-items:center;justify-content:center;padding:14px;flex:1;text-decoration:none;';
   editBtn.textContent = 'EDIT THIS DAY';
   actionsWrap.appendChild(editBtn);
+
+  // Delete button — links to confirmation page
+  const delBtn = document.createElement('a');
+  delBtn.href = '/report/delete/' + data.date + '/';
+  delBtn.style.cssText = `
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 14px 16px;
+    background: var(--low-bg);
+    border: 1px solid rgba(192,57,43,0.2);
+    border-radius: var(--r-lg);
+    color: var(--low-color);
+    font-family: var(--font-display);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    text-decoration: none;
+    flex-shrink: 0;
+    transition: all 0.2s ease;
+  `;
+  delBtn.textContent = 'DEL';
+  delBtn.onmouseover = () => { delBtn.style.background = '#C0392B'; delBtn.style.color = '#fff'; };
+  delBtn.onmouseout  = () => { delBtn.style.background = 'var(--low-bg)'; delBtn.style.color = 'var(--low-color)'; };
+  actionsWrap.appendChild(delBtn);
 
   content.appendChild(actionsWrap);
 

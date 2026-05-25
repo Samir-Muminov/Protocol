@@ -215,7 +215,37 @@ class AddReportView(LoginRequiredMixin, View):
             'form':        form,
             'target_date': self.get_initial_date(),
         })
+# /* PATH: Delete Report View */
+class DeleteReportView(LoginRequiredMixin, View):
+    """
+    Deletes a DailyReport for the given date.
+    GET  → shows confirmation page
+    POST → performs delete, redirects to dashboard
+    CSRF protected. Only deletes reports owned by the logged-in user.
+    """
+    def get(self, request, date, *args, **kwargs):
+        from django.shortcuts import render
+        try:
+            d = datetime.date.fromisoformat(date)
+        except ValueError:
+            return redirect('dashboard')
 
+        report = get_object_or_404(DailyReport, user=request.user, date=d)
+        return render(request, 'protocol_app/delete_confirm.html', {
+            'report': report,
+            'date':   date,
+        })
+
+    def post(self, request, date, *args, **kwargs):
+        try:
+            d = datetime.date.fromisoformat(date)
+        except ValueError:
+            return redirect('dashboard')
+
+        # get_object_or_404 ensures user can only delete their own reports
+        report = get_object_or_404(DailyReport, user=request.user, date=d)
+        report.delete()
+        return redirect('dashboard')
 
 # ══════════════════════════════════════════════════════════════════════════════
 # AJAX VIEWS

@@ -174,7 +174,7 @@
           <div class="stat-info">
             <div class="stat-header">
               <span class="stat-name">BOOKS</span>
-              <span class="stat-value">{{ today_report.pages_read }}pp <span class="stat-target">/ 50pp</span></span>
+              <span class="stat-value">{{ today_report.pages_read }}pp <span class="stat-target">/ 25pp</span></span>
             </div>
             <div class="mini-bar-track">
               <div class="mini-bar-fill books" id="barBooks" style="width:0%" data-target="{{ today_report.books_progress_pct }}"></div>
@@ -192,7 +192,7 @@
           <div class="stat-info">
             <div class="stat-header">
               <span class="stat-name">KCAL BURNED</span>
-              <span class="stat-value">{{ today_report.calories }} <span class="stat-target">/ 500</span></span>
+              <span class="stat-value">{{ today_report.calories }} <span class="stat-target">/ 1500</span></span>
             </div>
             <div class="mini-bar-track">
               <div class="mini-bar-fill kcal" id="barKcal" style="width:0%" data-target="{{ today_report.kcal_progress_pct }}"></div>
@@ -228,6 +228,50 @@
           </svg>
           UPDATE TODAY'S LOG
         </button>
+        <div class="divider"></div>
+        <div style="display:flex;gap:8px;">
+          <button class="add-report-fab" onclick="openModal()" style="flex:1;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+              <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+            UPDATE LOG
+          </button>
+          <!-- /* PATH: Delete Today's Report Button */ -->
+          <a href="{% url 'delete_report' today|date:'Y-m-d' %}"
+             style="
+               display:flex;
+               align-items:center;
+               justify-content:center;
+               gap:6px;
+               padding:15px 16px;
+               background:var(--low-bg);
+               border:1px solid rgba(192,57,43,0.2);
+               border-radius:var(--r-xl);
+               color:var(--low-color);
+               font-family:var(--font-display);
+               font-size:9px;
+               font-weight:700;
+               letter-spacing:2px;
+               text-transform:uppercase;
+               transition:all 0.2s ease;
+               text-decoration:none;
+               flex-shrink:0;
+             "
+             onmouseover="this.style.background='#C0392B';this.style.color='#fff';"
+             onmouseout="this.style.background='var(--low-bg)';this.style.color='var(--low-color)';"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="3 6 5 6 21 6"/>
+              <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+              <path d="M10 11v6M14 11v6"/>
+              <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
+            </svg>
+            DEL
+          </a>
+        </div>
 
       {% else %}
 
@@ -261,7 +305,7 @@
           <div class="stat-info">
             <div class="stat-header">
               <span class="stat-name" style="color:var(--text-dim);">BOOKS</span>
-              <span class="stat-value" style="color:var(--text-dim);">— <span class="stat-target">/ 50pp</span></span>
+              <span class="stat-value" style="color:var(--text-dim);">— <span class="stat-target">/ 25pp</span></span>
             </div>
             <div class="mini-bar-track">
               <div class="mini-bar-fill" style="width:0%;background:var(--border);animation:none;"></div>
@@ -443,12 +487,12 @@
       <div class="form-group">
         <label class="form-label">Pages Read</label>
         {{ form.pages_read }}
-        <div class="input-hint">Target: 50 pages</div>
+        <div class="input-hint">Target: 25 pages</div>
       </div>
       <div class="form-group">
         <label class="form-label">Calories Burned</label>
         {{ form.calories }}
-        <div class="input-hint">Target: 500 kcal</div>
+        <div class="input-hint">Target: 1500 kcal</div>
       </div>
       <div class="form-group">
         <label class="form-label">Distance (km)</label>

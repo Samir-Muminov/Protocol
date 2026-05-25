@@ -1773,3 +1773,54 @@ input, textarea, select { font-family: inherit; }
     transition-duration: 0.01ms !important;
   }
 }
+/* /* PATH: CSS — Rank Badge (matches photo style: circular glow, natural bleed) */
+.rank-image-wrap {
+  width: 110px;
+  height: 110px;
+  margin: 0 auto 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  /* Radial glow circle behind the image — matches photo */
+  background: radial-gradient(circle, rgba(180,210,255,0.35) 0%, rgba(200,220,255,0.15) 50%, transparent 75%);
+  border-radius: 50%;
+}
+
+/* Outer soft ring */
+.rank-image-wrap::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 1px solid rgba(180,210,255,0.3);
+  pointer-events: none;
+}
+
+.rank-img {
+  width: 100px;
+  height: 100px;
+  object-fit: contain;
+  /* Allow character to bleed outside circle naturally */
+  overflow: visible;
+  position: relative;
+  z-index: 1;
+  filter: drop-shadow(0 4px 12px rgba(0,0,0,0.18));
+  transition: transform var(--t-base) var(--ease-spring), filter var(--t-base);
+}
+
+.rank-bar:hover .rank-img {
+  transform: scale(1.08) translateY(-3px);
+  filter: drop-shadow(0 8px 20px rgba(0,0,0,0.22));
+}
+
+.rank-img-fallback {
+  width: 100px;
+  height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+}
