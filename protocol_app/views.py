@@ -3,7 +3,7 @@ import json
 import calendar
 import datetime
 from collections import defaultdict
-
+from django.shortcuts import render
 from django.contrib.auth import login, logout
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import LoginView, LogoutView
@@ -22,7 +22,8 @@ from .forms import DailyReportForm, ProtocolRegistrationForm
 import logging
 from django_ratelimit.decorators import ratelimit
 from django.utils.decorators import method_decorator
-from django.http import HttpResponseTooManyRequests
+from django.http import HttpResponse
+from django.http import JsonResponse
 from django.views.decorators.cache import never_cache
 from .validators import validate_daily_report, validate_registration, ValidationError as ProtocolValidationError
 
@@ -563,11 +564,9 @@ def handler429(request, exception=None):
     SECURITY: Graceful 429 Too Many Requests response.
     Returns JSON for AJAX requests, HTML page for normal requests.
     """
-    from django.http import JsonResponse
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return JsonResponse(
             {'error': 'Too many requests. Please slow down.'},
             status=429
         )
-    from django.shortcuts import render
     return render(request, 'protocol_app/429.html', status=429)
