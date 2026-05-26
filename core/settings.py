@@ -171,3 +171,18 @@ LOGGING = {
         },
     },
 }
+# /* PATH: Supabase — enforce SSL on database connection */
+# SECURITY: Supabase rejects non-SSL connections in production
+import dj_database_url
+
+db_config = dj_database_url.config(
+    default=env('DATABASE_URL', default=f'sqlite:///{BASE_DIR}/db.sqlite3'),
+    conn_max_age=600,
+)
+
+# Add SSL requirement for Supabase (any non-SQLite connection)
+if db_config.get('ENGINE') != 'django.db.backends.sqlite3':
+    db_config.setdefault('OPTIONS', {})
+    db_config['OPTIONS']['sslmode'] = 'require'
+
+DATABASES = {'default': db_config}
