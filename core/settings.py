@@ -11,17 +11,25 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # ── Environment variables ──────────────────────────────────────────────
 # SECURITY: django-environ reads from .env file locally,
 # and from real env vars in production (Render, Railway, etc.)
+# ── Environment variables ──────────────────────────────────────────────
 env = environ.Env(
     DEBUG=(bool, False),
-    ALLOWED_HOSTS=(list, ['127.0.0.1', 'localhost']),
 )
 
-# Read .env file if it exists (local dev only)
+# Read .env file if it exists
 environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 
 SECRET_KEY = env('SECRET_KEY')
-DEBUG      = env('DEBUG')
-ALLOWED_HOSTS = env('ALLOWED_HOSTS')
+DEBUG = env('DEBUG')
+
+# ГИБКИЙ ALLOWED_HOSTS:
+# Если мы на Render, он возьмет адрес из переменной окружения,
+# если нет — разрешит localhost
+ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['127.0.0.1', 'localhost'])
+
+# Если мы в продакшене (Render), добавляем адрес сайта принудительно
+if not DEBUG:
+    ALLOWED_HOSTS.append('protocol-06sy.onrender.com')
 
 INSTALLED_APPS = [
     'django.contrib.admin',
