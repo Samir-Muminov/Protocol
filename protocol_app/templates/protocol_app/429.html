@@ -1,0 +1,18 @@
+{% extends 'protocol_app/base.html' %}
+{% block title %}PROTOCOL — SLOW DOWN{% endblock %}
+{% block content %}
+<div class="auth-wrap">
+  <div class="auth-card" style="text-align:center;">
+    <div style="font-family:var(--font-number);font-size:72px;color:var(--ink);line-height:1;margin-bottom:12px;">429</div>
+    <div class="auth-logo">TOO FAST</div>
+    <div class="auth-tagline" style="margin-bottom:20px;">The Protocol detected unusual activity.</div>
+    <p style="font-size:13px;color:var(--ink-3);line-height:1.6;margin-bottom:24px;">
+      You've made too many requests.<br>
+      Wait a moment, then try again.
+    </p>
+    <a href="/" class="protocol-submit-btn" style="display:block;text-align:center;padding:14px;text-decoration:none;">
+      RETURN TO PROTOCOL
+    </a>
+  </div>
+</div>
+{% endblock %}

@@ -18,16 +18,28 @@ from django.urls import reverse_lazy
 from .models import DailyReport, MotivationQuote
 from .forms import DailyReportForm, ProtocolRegistrationForm
 
+# /* PATH: Security imports */
+import logging
+from django_ratelimit.decorators import ratelimit
+from django.utils.decorators import method_decorator
+from django.http import HttpResponseTooManyRequests
+from django.views.decorators.cache import never_cache
+from .validators import validate_daily_report, validate_registration, ValidationError as ProtocolValidationError
 
+logger = logging.getLogger('protocol_app')
 # ══════════════════════════════════════════════════════════════════════════════
 # AUTH VIEWS
 # ══════════════════════════════════════════════════════════════════════════════
 
+# /* PATH: Auth — Login with rate limiting */
+# SECURITY: Rate limited to 10 attempts per 5 minutes per IP
+# Prevents brute force attacks on login
+@method_decorator(
+    ratelimit(key='ip', rate='10/5m', method='POST', block=True),
+    name='dispatch'
+)
+@method_decorator(never_cache, name='dispatch')
 class ProtocolLoginView(LoginView):
-    """
-    Custom login view using our Protocol-styled template.
-    Redirects authenticated users straight to dashboard.
-    """
     template_name = 'protocol_app/login.html'
 
     def dispatch(self, request, *args, **kwargs):
@@ -35,44 +47,11 @@ class ProtocolLoginView(LoginView):
             return redirect('dashboard')
         return super().dispatch(request, *args, **kwargs)
 
-
-# /* PATH: Auth Views — Logout Fix */
-class ProtocolLogoutView(View):
-    """
-    GET request shows a confirmation page.
-    POST request performs the actual logout and redirects to login.
-    This prevents accidental logouts and satisfies Django's CSRF
-    protection on logout (required in Django 5+).
-    """
-    def get(self, request, *args, **kwargs):
-        from django.shortcuts import render
-        return render(request, 'protocol_app/logout_confirm.html')
-
-    def post(self, request, *args, **kwargs):
-        from django.contrib.auth import logout as auth_logout
-        auth_logout(request)
-        return redirect('login')
-
-
-class RegisterView(CreateView):
-    """
-    Registration with our custom form.
-    Auto-logs in the new user and redirects to dashboard.
-    """
-    template_name   = 'protocol_app/register.html'
-    form_class      = ProtocolRegistrationForm
-    success_url     = reverse_lazy('dashboard')
-
-    def dispatch(self, request, *args, **kwargs):
-        if request.user.is_authenticated:
-            return redirect('dashboard')
-        return super().dispatch(request, *args, **kwargs)
-
-    def form_valid(self, form):
-        user = form.save()
-        login(self.request, user)
-        return redirect(self.success_url)
-
+    def form_invalid(self, form):
+        # SECURITY: Log failed login attempts with IP (no password logged)
+        ip = _get_client_ip(self.request)
+        logger.warning(f"Failed login attempt from IP: {ip}")
+        return super().form_invalid(form)
 
 # ══════════════════════════════════════════════════════════════════════════════
 # DASHBOARD
@@ -193,28 +172,37 @@ class AddReportView(LoginRequiredMixin, View):
     def post(self, request, *args, **kwargs):
         from django.shortcuts import render
 
-        # Check if updating an existing report
-        date_str = request.POST.get('date')
-        existing = None
-        if date_str:
-            try:
-                d = datetime.date.fromisoformat(date_str)
-                existing = DailyReport.objects.filter(user=request.user, date=d).first()
-            except ValueError:
-                pass
+        # SECURITY: Validate and sanitize all inputs before touching the DB
+        try:
+            clean_data = validate_daily_report(request.POST)
+        except ProtocolValidationError as e:
+            form = DailyReportForm(request.POST)
+            return render(request, self.template_name, {
+                'form':             form,
+                'target_date':      self.get_initial_date(),
+                'validation_error': str(e),
+            })
 
-        form = DailyReportForm(request.POST, instance=existing)
+        # Check if updating existing report
+        existing = DailyReport.objects.filter(
+            user=request.user,
+            date=clean_data['date']
+        ).first()
+
+        form = DailyReportForm(clean_data, instance=existing)
         if form.is_valid():
             report = form.save(commit=False)
-            report.user      = request.user
-            report.ai_comment = ''  # Force regeneration
+            report.user       = request.user
+            report.ai_comment = ''
             report.save()
+            logger.info(f"Report saved: user={request.user.username} date={clean_data['date']}")
             return redirect('dashboard')
 
         return render(request, self.template_name, {
             'form':        form,
             'target_date': self.get_initial_date(),
         })
+    
 # /* PATH: Delete Report View */
 class DeleteReportView(LoginRequiredMixin, View):
     """
@@ -250,7 +238,10 @@ class DeleteReportView(LoginRequiredMixin, View):
 # ══════════════════════════════════════════════════════════════════════════════
 # AJAX VIEWS
 # ══════════════════════════════════════════════════════════════════════════════
-
+@method_decorator(
+    ratelimit(key='user_or_ip', rate='60/m', method='GET', block=True),
+    name='dispatch'
+)
 class DayCardAjaxView(LoginRequiredMixin, View):
     """
     AJAX endpoint: returns JSON for a specific day's card.
@@ -299,7 +290,10 @@ class DayCardAjaxView(LoginRequiredMixin, View):
 
         return JsonResponse(data)
 
-
+@method_decorator(
+    ratelimit(key='user_or_ip', rate='30/m', method='GET', block=True),
+    name='dispatch'
+)
 class CalendarAjaxView(LoginRequiredMixin, View):
     """
     AJAX endpoint: returns the full month's heatmap data as JSON.
@@ -549,3 +543,31 @@ def _calculate_protocol_shadow(user, today):
             f"{rank_proj}."
         ),
     }
+
+# /* PATH: Security Helpers */
+
+def _get_client_ip(request):
+    """
+    SECURITY: Gets real client IP respecting reverse proxies.
+    X-Forwarded-For can be spoofed — only trust it behind a known proxy.
+    """
+    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+    if x_forwarded_for:
+        # Take the first IP in the chain (client IP)
+        return x_forwarded_for.split(',')[0].strip()
+    return request.META.get('REMOTE_ADDR', '0.0.0.0')
+
+
+def handler429(request, exception=None):
+    """
+    SECURITY: Graceful 429 Too Many Requests response.
+    Returns JSON for AJAX requests, HTML page for normal requests.
+    """
+    from django.http import JsonResponse
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse(
+            {'error': 'Too many requests. Please slow down.'},
+            status=429
+        )
+    from django.shortcuts import render
+    return render(request, 'protocol_app/429.html', status=429)
