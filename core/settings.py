@@ -70,9 +70,9 @@ WSGI_APPLICATION = 'core.wsgi.application'
 
 # ── Database ───────────────────────────────────────────────────────────
 # SECURITY: DATABASE_URL from env — never hardcode credentials
-DATABASES = {
-    'default': env.db('DATABASE_URL', default=f'sqlite:///{BASE_DIR}/db.sqlite3')
-}
+# DATABASES = {
+#     'default': env.db('DATABASE_URL', default=f'sqlite:///{BASE_DIR}/db.sqlite3')
+# }
 
 # ── Password validation ────────────────────────────────────────────────
 AUTH_PASSWORD_VALIDATORS = [
