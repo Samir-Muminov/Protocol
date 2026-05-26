@@ -137,8 +137,8 @@ import os
 # Используем файловый кэш, так как он поддерживается системой и не требует внешних сервисов
 CACHES = {
     'default': {
-        'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
-        'LOCATION': os.path.join(os.getcwd(), 'django_cache'),
+        'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
+        'LOCATION': 'django_cache_table',
     }
 }
 
