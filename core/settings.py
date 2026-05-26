@@ -148,10 +148,16 @@ RATELIMIT_FAIL_OPEN = False
 import os
 
 # Используем файловый кэш, так как он поддерживается системой и не требует внешних сервисов
+# CACHES = {
+#     'default': {
+#         'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
+#         'LOCATION': 'django_cache_table',
+#     }
+# }
+# settings.py
 CACHES = {
     'default': {
-        'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
-        'LOCATION': 'django_cache_table',
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
     }
 }
 
