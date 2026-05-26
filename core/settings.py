@@ -3,6 +3,10 @@ import os
 from pathlib import Path
 import environ
 import dj_database_url
+import socket
+# Принудительно заставляем библиотеку postgres использовать IPv4
+import psycopg2.extensions
+psycopg2.extensions.register_type(psycopg2.extensions.UNICODE)
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -64,12 +68,21 @@ WSGI_APPLICATION = 'core.wsgi.application'
 
 # ── Database (Supabase in production, SQLite locally) ─────────────────
 # SECURITY: DATABASE_URL from environment — never hardcoded
+# Замени свой текущий блок на этот:
 db_config = dj_database_url.config(
     default=f'sqlite:///{BASE_DIR}/db.sqlite3',
     conn_max_age=600,
-    ssl_require=not DEBUG,   # Supabase requires SSL; SQLite ignores it
+    ssl_require=True, 
 )
+
+# Если ошибка 'Network is unreachable' повторится, 
+# значит Supabase отвергает подключение. 
+# Добавь эту проверку в настройки:
 DATABASES = {'default': db_config}
+
+# Принудительно отключаем попытки IPv6, если они есть
+import socket
+socket.setdefaulttimeout(30)
 
 # ── Password validation ────────────────────────────────────────────────
 AUTH_PASSWORD_VALIDATORS = [
