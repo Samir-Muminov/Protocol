@@ -1,35 +1,23 @@
 # core/settings.py
-# SECURITY: All secrets loaded from environment variables via django-environ
-# Never hardcode SECRET_KEY, DATABASE_URL, or DEBUG in this file
-
 import os
 from pathlib import Path
 import environ
+import dj_database_url
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# ── Environment variables ──────────────────────────────────────────────
-# SECURITY: django-environ reads from .env file locally,
-# and from real env vars in production (Render, Railway, etc.)
-# ── Environment variables ──────────────────────────────────────────────
-env = environ.Env(
-    DEBUG=(bool, False),
-)
-
-# Read .env file if it exists
+# ── Environment ────────────────────────────────────────────────────────
+env = environ.Env(DEBUG=(bool, False))
 environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 
-SECRET_KEY = env('SECRET_KEY')
-DEBUG = env('DEBUG')
-
-# ГИБКИЙ ALLOWED_HOSTS:
-# Если мы на Render, он возьмет адрес из переменной окружения,
-# если нет — разрешит localhost
+SECRET_KEY    = env('SECRET_KEY')
+DEBUG         = env('DEBUG')
 ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['127.0.0.1', 'localhost'])
 
-# Если мы в продакшене (Render), добавляем адрес сайта принудительно
-if not DEBUG:
-    ALLOWED_HOSTS.append('protocol-06sy.onrender.com')
+# Auto-add Render hostname so you never need to hardcode it
+RENDER_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
+if RENDER_HOSTNAME:
+    ALLOWED_HOSTS.append(RENDER_HOSTNAME)
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -39,13 +27,11 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'protocol_app',
-    # SECURITY: rate limiting middleware
     'django_ratelimit',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    # SECURITY: WhiteNoise serves static files securely in production
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -76,11 +62,14 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'core.wsgi.application'
 
-# ── Database ───────────────────────────────────────────────────────────
-# SECURITY: DATABASE_URL from env — never hardcode credentials
-# DATABASES = {
-#     'default': env.db('DATABASE_URL', default=f'sqlite:///{BASE_DIR}/db.sqlite3')
-# }
+# ── Database (Supabase in production, SQLite locally) ─────────────────
+# SECURITY: DATABASE_URL from environment — never hardcoded
+db_config = dj_database_url.config(
+    default=f'sqlite:///{BASE_DIR}/db.sqlite3',
+    conn_max_age=600,
+    ssl_require=not DEBUG,   # Supabase requires SSL; SQLite ignores it
+)
+DATABASES = {'default': db_config}
 
 # ── Password validation ────────────────────────────────────────────────
 AUTH_PASSWORD_VALIDATORS = [
@@ -98,50 +87,50 @@ USE_I18N      = True
 USE_TZ        = True
 
 # ── Static files ───────────────────────────────────────────────────────
-STATIC_URL  = '/static/'
-STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATIC_URL       = '/static/'
+STATIC_ROOT      = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [BASE_DIR / 'protocol_app' / 'static']
-# SECURITY: WhiteNoise compressed static files
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+# FIX: STATICFILES_STORAGE is deprecated in Django 6 — use STORAGES instead
+STORAGES = {
+    'default': {
+        'BACKEND': 'django.core.files.storage.FileSystemStorage',
+    },
+    'staticfiles': {
+        'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+    },
+}
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-LOGIN_URL          = '/login/'
-LOGIN_REDIRECT_URL = '/'
-LOGOUT_REDIRECT_URL= '/login/'
+LOGIN_URL           = '/login/'
+LOGIN_REDIRECT_URL  = '/'
+LOGOUT_REDIRECT_URL = '/login/'
 
 # ── Session security ───────────────────────────────────────────────────
-# SECURITY: Sessions expire on browser close, 8h max
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 SESSION_COOKIE_AGE              = 28800
 SESSION_COOKIE_HTTPONLY         = True
-# SECURITY: Set True in production (requires HTTPS)
 SESSION_COOKIE_SECURE           = not DEBUG
 SESSION_COOKIE_SAMESITE         = 'Lax'
 
 # ── CSRF ───────────────────────────────────────────────────────────────
-# SECURITY: CSRF cookie not accessible via JS
-CSRF_COOKIE_HTTPONLY = False  # Must be False — JS reads it for AJAX
+CSRF_COOKIE_HTTPONLY = False   # JS needs to read it for AJAX
 CSRF_COOKIE_SECURE   = not DEBUG
 CSRF_COOKIE_SAMESITE = 'Lax'
 
 # ── Security headers ───────────────────────────────────────────────────
-# SECURITY: Prevent clickjacking
-X_FRAME_OPTIONS = 'DENY'
-# SECURITY: Force HTTPS in production
-SECURE_SSL_REDIRECT              = not DEBUG
-SECURE_HSTS_SECONDS              = 31536000 if not DEBUG else 0
-SECURE_HSTS_INCLUDE_SUBDOMAINS   = not DEBUG
-SECURE_HSTS_PRELOAD              = not DEBUG
-# SECURITY: Prevent MIME-type sniffing
-SECURE_CONTENT_TYPE_NOSNIFF      = True
-# SECURITY: XSS protection header
-SECURE_BROWSER_XSS_FILTER        = True
+X_FRAME_OPTIONS                = 'DENY'
+SECURE_SSL_REDIRECT            = not DEBUG
+SECURE_HSTS_SECONDS            = 31536000 if not DEBUG else 0
+SECURE_HSTS_INCLUDE_SUBDOMAINS = not DEBUG
+SECURE_HSTS_PRELOAD            = not DEBUG
+SECURE_CONTENT_TYPE_NOSNIFF    = True
+SECURE_BROWSER_XSS_FILTER      = True
 
-# ── Rate limiting defaults ─────────────────────────────────────────────
-# SECURITY: Global defaults — overridden per-view as needed
+# ── Rate limiting ──────────────────────────────────────────────────────
 RATELIMIT_USE_CACHE = 'default'
-RATELIMIT_FAIL_OPEN = False  # Block if cache is down (safe default)
+RATELIMIT_FAIL_OPEN = False
 
 CACHES = {
     'default': {
@@ -150,7 +139,6 @@ CACHES = {
 }
 
 # ── Logging ────────────────────────────────────────────────────────────
-# SECURITY: Log security events without exposing secrets
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -179,18 +167,3 @@ LOGGING = {
         },
     },
 }
-# /* PATH: Supabase — enforce SSL on database connection */
-# SECURITY: Supabase rejects non-SSL connections in production
-import dj_database_url
-
-db_config = dj_database_url.config(
-    default=env('DATABASE_URL', default=f'sqlite:///{BASE_DIR}/db.sqlite3'),
-    conn_max_age=600,
-)
-
-# Add SSL requirement for Supabase (any non-SQLite connection)
-if db_config.get('ENGINE') != 'django.db.backends.sqlite3':
-    db_config.setdefault('OPTIONS', {})
-    db_config['OPTIONS']['sslmode'] = 'require'
-
-DATABASES = {'default': db_config}

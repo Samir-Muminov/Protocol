@@ -2,7 +2,7 @@
 from django.contrib import admin
 from django.urls import path, include
 
-# SECURITY: Custom 429 handler for rate limit responses
+# SECURITY: Custom 429 handler
 handler429 = 'protocol_app.views.handler429'
 
 urlpatterns = [
