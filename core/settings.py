@@ -140,28 +140,27 @@ SECURE_BROWSER_XSS_FILTER      = True
 # same machine — works on Render's free tier with no extra services.
 # For multi-machine scale, swap this for Redis (e.g. Upstash free tier).
 
-if DEBUG:
-    # Local dev: simple in-memory is fine (single process)
-    CACHES = {
-        'default': {
-            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-        }
-    }
-else:
-    # Production: file-based cache shared across Gunicorn workers
-    CACHES = {
-        'default': {
-            'BACKEND':  'django.core.cache.backends.filebased.FileBasedCache',
-            'LOCATION': '/tmp/django_cache_protocol',
-            'TIMEOUT':  300,
-            'OPTIONS': {
-                'MAX_ENTRIES': 10000,
-            }
-        }
-    }
+# ── Cache & Rate Limiting ──────────────────────────────────────────────
+# django-ratelimit requires atomic increment support.
+# On Render free tier we have no Redis/Memcached.
+# Solution: use LocMemCache (per-worker) and silence the system check.
+# This means rate limits are per-worker (2 workers = 2x the limit
+# effectively) — acceptable for a personal/portfolio project.
+# For production at scale: swap to Upstash Redis (free tier available).
 
-# ── Rate limiting ──────────────────────────────────────────────────────
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'protocol-ratelimit',
+    }
+}
+
 RATELIMIT_USE_CACHE = 'default'
+RATELIMIT_FAIL_OPEN = True   # If cache fails, allow request through
+
+# Silence django-ratelimit's system check about LocMemCache.
+# We accept the per-worker limitation for this deployment tier.
+SILENCED_SYSTEM_CHECKS = ['django_ratelimit.E003', 'django_ratelimit.W001']
 # SECURITY: Fail closed — if cache is unavailable, block the request
 # rather than letting unlimited traffic through.
 RATELIMIT_FAIL_OPEN = False
