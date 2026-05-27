@@ -3,10 +3,6 @@ import os
 from pathlib import Path
 import environ
 import dj_database_url
-import socket
-# Принудительно заставляем библиотеку postgres использовать IPv4
-import psycopg2.extensions
-psycopg2.extensions.register_type(psycopg2.extensions.UNICODE)
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -18,7 +14,7 @@ SECRET_KEY    = env('SECRET_KEY')
 DEBUG         = env('DEBUG')
 ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['127.0.0.1', 'localhost'])
 
-# Auto-add Render hostname so you never need to hardcode it
+# Auto-detect Render hostname — no hardcoding needed
 RENDER_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
 if RENDER_HOSTNAME:
     ALLOWED_HOSTS.append(RENDER_HOSTNAME)
@@ -66,23 +62,17 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'core.wsgi.application'
 
-# ── Database (Supabase in production, SQLite locally) ─────────────────
-# SECURITY: DATABASE_URL from environment — never hardcoded
-# Замени свой текущий блок на этот:
+# ── Database ───────────────────────────────────────────────────────────
+# Uses Supabase Session Pooler URL in production (IPv4, not IPv6).
+# Locally falls back to SQLite.
+# IMPORTANT: Use the Supabase POOLER connection string, not the direct one.
+# Pooler URL format: postgresql://postgres.PROJECT:PASS@aws-0-REGION.pooler.supabase.com:5432/postgres
 db_config = dj_database_url.config(
     default=f'sqlite:///{BASE_DIR}/db.sqlite3',
     conn_max_age=600,
-    ssl_require=True, 
+    ssl_require=not DEBUG,
 )
-
-# Если ошибка 'Network is unreachable' повторится, 
-# значит Supabase отвергает подключение. 
-# Добавь эту проверку в настройки:
 DATABASES = {'default': db_config}
-
-# Принудительно отключаем попытки IPv6, если они есть
-import socket
-socket.setdefaulttimeout(30)
 
 # ── Password validation ────────────────────────────────────────────────
 AUTH_PASSWORD_VALIDATORS = [
@@ -104,7 +94,6 @@ STATIC_URL       = '/static/'
 STATIC_ROOT      = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [BASE_DIR / 'protocol_app' / 'static']
 
-# FIX: STATICFILES_STORAGE is deprecated in Django 6 — use STORAGES instead
 STORAGES = {
     'default': {
         'BACKEND': 'django.core.files.storage.FileSystemStorage',
@@ -128,7 +117,7 @@ SESSION_COOKIE_SECURE           = not DEBUG
 SESSION_COOKIE_SAMESITE         = 'Lax'
 
 # ── CSRF ───────────────────────────────────────────────────────────────
-CSRF_COOKIE_HTTPONLY = False   # JS needs to read it for AJAX
+CSRF_COOKIE_HTTPONLY = False
 CSRF_COOKIE_SECURE   = not DEBUG
 CSRF_COOKIE_SAMESITE = 'Lax'
 
@@ -141,25 +130,41 @@ SECURE_HSTS_PRELOAD            = not DEBUG
 SECURE_CONTENT_TYPE_NOSNIFF    = True
 SECURE_BROWSER_XSS_FILTER      = True
 
+# ── Cache ──────────────────────────────────────────────────────────────
+# SECURITY / FIX: django_ratelimit requires a SHARED cache backend in
+# production. LocMemCache is per-process — with 2 Gunicorn workers each
+# worker has its own counter, so rate limits only apply per-worker (half
+# effective) and fail the django_ratelimit system check entirely.
+#
+# FileBasedCache writes to disk and is shared across all workers on the
+# same machine — works on Render's free tier with no extra services.
+# For multi-machine scale, swap this for Redis (e.g. Upstash free tier).
+
+if DEBUG:
+    # Local dev: simple in-memory is fine (single process)
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        }
+    }
+else:
+    # Production: file-based cache shared across Gunicorn workers
+    CACHES = {
+        'default': {
+            'BACKEND':  'django.core.cache.backends.filebased.FileBasedCache',
+            'LOCATION': '/tmp/django_cache_protocol',
+            'TIMEOUT':  300,
+            'OPTIONS': {
+                'MAX_ENTRIES': 10000,
+            }
+        }
+    }
+
 # ── Rate limiting ──────────────────────────────────────────────────────
 RATELIMIT_USE_CACHE = 'default'
+# SECURITY: Fail closed — if cache is unavailable, block the request
+# rather than letting unlimited traffic through.
 RATELIMIT_FAIL_OPEN = False
-
-import os
-
-# Используем файловый кэш, так как он поддерживается системой и не требует внешних сервисов
-# CACHES = {
-#     'default': {
-#         'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
-#         'LOCATION': 'django_cache_table',
-#     }
-# }
-# settings.py
-CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-    }
-}
 
 # ── Logging ────────────────────────────────────────────────────────────
 LOGGING = {
