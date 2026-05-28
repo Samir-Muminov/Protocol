@@ -1,20 +1,24 @@
 # protocol_app/views.py
+import csv
 import json
 import calendar
 import datetime
 import logging
-
-from django.contrib.auth import login
+import os
+from django.http import HttpResponse
+from django.views import View
+from django.contrib.auth import login, update_session_auth_hash
+from django.contrib.auth.forms import PasswordChangeForm
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import LoginView
-from django.http import JsonResponse
+from django.core.cache import cache
+from django.http import JsonResponse, HttpResponse
 from django.shortcuts import redirect, get_object_or_404, render
 from django.utils import timezone
 from django.views.generic import TemplateView, CreateView, View
 from django.urls import reverse_lazy
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
-
 from django_ratelimit.decorators import ratelimit
 
 from .models import DailyReport, MotivationQuote
@@ -27,12 +31,46 @@ from .validators import (
 
 logger = logging.getLogger('protocol_app')
 
+class ManagementCommandView(View):
+    """
+    Secret management endpoint — free alternative to Render Shell.
+    Protected by MANAGEMENT_SECRET env variable.
+    DELETE THIS VIEW after you're done seeding.
+    """
+    def get(self, request, *args, **kwargs):
+        secret = request.GET.get('secret', '')
+        expected = os.environ.get('MANAGEMENT_SECRET', '')
 
+        if not expected or secret != expected:
+            return HttpResponse('403 Forbidden', status=403)
+
+        command = request.GET.get('cmd', 'seed')
+
+        if command == 'seed':
+            from django.core.management import call_command
+            from io import StringIO
+            out = StringIO()
+            call_command('seed_protocol', '--days', '60', stdout=out)
+            return HttpResponse(
+                f'<pre>{out.getvalue()}</pre>',
+                content_type='text/html'
+            )
+
+        if command == 'migrate':
+            from django.core.management import call_command
+            from io import StringIO
+            out = StringIO()
+            call_command('migrate', stdout=out)
+            return HttpResponse(
+                f'<pre>{out.getvalue()}</pre>',
+                content_type='text/html'
+            )
+
+        return HttpResponse('Unknown command', status=400)
 # ══════════════════════════════════════════════════════════════════════
-# AUTH VIEWS
+# AUTH
 # ══════════════════════════════════════════════════════════════════════
 
-# SECURITY: Rate limited — 10 login attempts per 5 minutes per IP
 @method_decorator(
     ratelimit(key='ip', rate='10/5m', method='POST', block=True),
     name='dispatch'
@@ -52,13 +90,7 @@ class ProtocolLoginView(LoginView):
         return super().form_invalid(form)
 
 
-# SECURITY: True POST-based logout — no GET logout possible
 class ProtocolLogoutView(View):
-    """
-    GET  → confirmation page
-    POST → performs logout + redirects to login
-    Prevents accidental logout via link crawlers / prefetch.
-    """
     def get(self, request, *args, **kwargs):
         if not request.user.is_authenticated:
             return redirect('login')
@@ -70,7 +102,6 @@ class ProtocolLogoutView(View):
         return redirect('login')
 
 
-# SECURITY: Rate limited — 5 registrations per hour per IP
 @method_decorator(
     ratelimit(key='ip', rate='5/h', method='POST', block=True),
     name='dispatch'
@@ -112,7 +143,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
     template_name = 'protocol_app/dashboard.html'
 
     def get_context_data(self, **kwargs):
-        ctx  = super().get_context_data(**kwargs)
+        ctx   = super().get_context_data(**kwargs)
         user  = self.request.user
         today = timezone.localdate()
 
@@ -122,14 +153,14 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         except DailyReport.DoesNotExist:
             today_report = None
 
-        # Current week heatmap
-        week_start  = today - datetime.timedelta(days=today.weekday())
-        week_days   = [week_start + datetime.timedelta(days=i) for i in range(7)]
+        # Week heatmap — single query
+        week_start   = today - datetime.timedelta(days=today.weekday())
+        week_days    = [week_start + datetime.timedelta(days=i) for i in range(7)]
         week_reports = DailyReport.objects.filter(
             user=user,
             date__gte=week_start,
             date__lte=week_days[-1],
-        )
+        ).select_related('user')
         week_report_map = {r.date: r for r in week_reports}
 
         week_data = []
@@ -148,18 +179,22 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                 ),
             })
 
-        # Protocol Shadow
-        shadow = _calculate_protocol_shadow(user, today)
-
-        # Streak calculator
+        # PERFORMANCE: Efficient streak — one query, set lookup O(1)
+        recent_dates = set(
+            DailyReport.objects
+            .filter(user=user, date__lte=today)
+            .order_by('-date')
+            .values_list('date', flat=True)[:365]
+        )
+        # BUG FIX: Start from yesterday if today not yet logged
         streak     = 0
-        check_date = today
-        while True:
-            if DailyReport.objects.filter(user=user, date=check_date).exists():
-                streak    += 1
-                check_date -= datetime.timedelta(days=1)
-            else:
-                break
+        check_date = today if today_report else today - datetime.timedelta(days=1)
+        while check_date in recent_dates:
+            streak    += 1
+            check_date -= datetime.timedelta(days=1)
+
+        # Protocol Shadow — cached per user for 5 minutes
+        shadow = _get_cached_shadow(user, today)
 
         form = DailyReportForm(initial={'date': today})
 
@@ -177,7 +212,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
 
 
 # ══════════════════════════════════════════════════════════════════════
-# REPORT VIEWS
+# REPORTS
 # ══════════════════════════════════════════════════════════════════════
 
 class AddReportView(LoginRequiredMixin, View):
@@ -199,14 +234,12 @@ class AddReportView(LoginRequiredMixin, View):
             form = DailyReportForm(instance=existing)
         except DailyReport.DoesNotExist:
             form = DailyReportForm(initial={'date': target_date})
-
         return render(request, self.template_name, {
             'form':        form,
             'target_date': target_date,
         })
 
     def post(self, request, *args, **kwargs):
-        # SECURITY: Validate and sanitize before touching the DB
         try:
             clean_data = validate_daily_report(request.POST)
         except ProtocolValidationError as e:
@@ -218,8 +251,7 @@ class AddReportView(LoginRequiredMixin, View):
             })
 
         existing = DailyReport.objects.filter(
-            user=request.user,
-            date=clean_data['date']
+            user=request.user, date=clean_data['date']
         ).first()
 
         form = DailyReportForm(clean_data, instance=existing)
@@ -228,10 +260,9 @@ class AddReportView(LoginRequiredMixin, View):
             report.user       = request.user
             report.ai_comment = ''
             report.save()
-            logger.info(
-                f"Report saved: user={request.user.username} "
-                f"date={clean_data['date']}"
-            )
+            # Invalidate shadow cache on new data
+            cache.delete(f'shadow_{request.user.id}')
+            logger.info(f"Report saved: {request.user.username} {clean_data['date']}")
             return redirect('dashboard')
 
         return render(request, self.template_name, {
@@ -241,17 +272,11 @@ class AddReportView(LoginRequiredMixin, View):
 
 
 class DeleteReportView(LoginRequiredMixin, View):
-    """
-    GET  → confirmation page
-    POST → delete + redirect
-    CSRF protected. Users can only delete their own reports.
-    """
     def get(self, request, date, *args, **kwargs):
         try:
             d = datetime.date.fromisoformat(date)
         except ValueError:
             return redirect('dashboard')
-
         report = get_object_or_404(DailyReport, user=request.user, date=d)
         return render(request, 'protocol_app/delete_confirm.html', {
             'report': report,
@@ -263,20 +288,118 @@ class DeleteReportView(LoginRequiredMixin, View):
             d = datetime.date.fromisoformat(date)
         except ValueError:
             return redirect('dashboard')
-
         report = get_object_or_404(DailyReport, user=request.user, date=d)
         report.delete()
-        logger.info(
-            f"Report deleted: user={request.user.username} date={date}"
-        )
+        cache.delete(f'shadow_{request.user.id}')
+        logger.info(f"Report deleted: {request.user.username} {date}")
         return redirect('dashboard')
 
 
 # ══════════════════════════════════════════════════════════════════════
-# AJAX VIEWS
+# EXPORT
 # ══════════════════════════════════════════════════════════════════════
 
-# SECURITY: Rate limited — 60 requests/min per user
+class ExportCSVView(LoginRequiredMixin, View):
+    """
+    Exports all of the user's reports as a CSV file.
+    Portfolio value: shows data ownership and professional thinking.
+    """
+    def get(self, request, *args, **kwargs):
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = (
+            f'attachment; filename="protocol_{request.user.username}_data.csv"'
+        )
+        writer = csv.writer(response)
+        writer.writerow([
+            'Date', 'IT Hours', 'Pages Read', 'Calories',
+            'Distance (km)', 'Discipline Score', 'Rank',
+            'IT Points', 'Books Points', 'Kcal Points', 'KM Points',
+        ])
+        reports = DailyReport.objects.filter(
+            user=request.user
+        ).order_by('date')
+        for r in reports:
+            writer.writerow([
+                r.date,
+                r.it_math_hours,
+                r.pages_read,
+                r.calories,
+                r.distance_km,
+                r.discipline_score,
+                r.rank,
+                r.it_points,
+                r.books_points,
+                r.kcal_points,
+                r.km_points,
+            ])
+        logger.info(f"CSV export: {request.user.username} ({reports.count()} rows)")
+        return response
+
+
+# ══════════════════════════════════════════════════════════════════════
+# PROFILE
+# ══════════════════════════════════════════════════════════════════════
+
+class ProfileView(LoginRequiredMixin, View):
+    template_name = 'protocol_app/profile.html'
+
+    def get(self, request, *args, **kwargs):
+        user         = request.user
+        total        = DailyReport.objects.filter(user=user).count()
+        best         = None
+        best_report  = DailyReport.objects.filter(user=user).order_by('-date')
+        best_score   = 0
+        best_date    = None
+        for r in best_report:
+            if r.discipline_score > best_score:
+                best_score = r.discipline_score
+                best_date  = r.date
+
+        # Current rank from latest report
+        latest = DailyReport.objects.filter(user=user).order_by('-date').first()
+
+        pw_form = PasswordChangeForm(user=user)
+        return render(request, self.template_name, {
+            'total_reports': total,
+            'best_score':    best_score,
+            'best_date':     best_date,
+            'latest_report': latest,
+            'pw_form':        pw_form,
+        })
+
+    def post(self, request, *args, **kwargs):
+        pw_form = PasswordChangeForm(user=request.user, data=request.POST)
+        if pw_form.is_valid():
+            pw_form.save()
+            update_session_auth_hash(request, pw_form.user)
+            logger.info(f"Password changed: {request.user.username}")
+            return redirect('profile')
+
+        total      = DailyReport.objects.filter(user=request.user).count()
+        latest     = DailyReport.objects.filter(
+            user=request.user
+        ).order_by('-date').first()
+        best_score = 0
+        best_date  = None
+        for r in DailyReport.objects.filter(user=request.user):
+            if r.discipline_score > best_score:
+                best_score = r.discipline_score
+                best_date  = r.date
+
+        return render(request, self.template_name, {
+            'total_reports': total,
+            'best_score':    best_score,
+            'best_date':     best_date,
+            'latest_report': latest,
+            'pw_form':        pw_form,
+            'pw_error':       True,
+        })
+
+
+# ══════════════════════════════════════════════════════════════════════
+# AJAX
+# ══════════════════════════════════════════════════════════════════════
+
 @method_decorator(
     ratelimit(key='user_or_ip', rate='60/m', method='GET', block=True),
     name='dispatch'
@@ -289,7 +412,9 @@ class DayCardAjaxView(LoginRequiredMixin, View):
             return JsonResponse({'error': 'Invalid date'}, status=400)
 
         try:
-            report = DailyReport.objects.get(user=request.user, date=d)
+            report = DailyReport.objects.select_related('user').get(
+                user=request.user, date=d
+            )
             data = {
                 'exists':         True,
                 'date':           date,
@@ -324,11 +449,9 @@ class DayCardAjaxView(LoginRequiredMixin, View):
                 'date':         date,
                 'date_display': d.strftime('%B %d, %Y').upper(),
             }
-
         return JsonResponse(data)
 
 
-# SECURITY: Rate limited — 30 requests/min per user
 @method_decorator(
     ratelimit(key='user_or_ip', rate='30/m', method='GET', block=True),
     name='dispatch'
@@ -350,7 +473,7 @@ class CalendarAjaxView(LoginRequiredMixin, View):
             user=request.user,
             date__gte=month_start,
             date__lte=month_end,
-        )
+        ).select_related('user')
         report_map = {r.date: r for r in reports}
 
         days = []
@@ -413,16 +536,12 @@ class GlobalReportView(LoginRequiredMixin, TemplateView):
         prev_end   = start_date - datetime.timedelta(days=1)
 
         reports = list(DailyReport.objects.filter(
-            user=user,
-            date__gte=start_date,
-            date__lte=today,
-        ).order_by('date'))
+            user=user, date__gte=start_date, date__lte=today,
+        ).order_by('date').select_related('user'))
 
         prev_reports = list(DailyReport.objects.filter(
-            user=user,
-            date__gte=prev_start,
-            date__lte=prev_end,
-        ))
+            user=user, date__gte=prev_start, date__lte=prev_end,
+        ).select_related('user'))
 
         avg_score  = _average_score(reports)
         prev_score = _average_score(prev_reports)
@@ -430,14 +549,11 @@ class GlobalReportView(LoginRequiredMixin, TemplateView):
         if prev_score and prev_score > 0:
             delta_pct = ((avg_score - prev_score) / prev_score) * 100
             if delta_pct > 0:
-                comparison = (
-                    f"You are {abs(delta_pct):.0f}% more disciplined "
-                    f"than last {period}."
-                )
+                comparison = f"You are {abs(delta_pct):.0f}% more disciplined than last {period}."
             elif delta_pct < 0:
                 comparison = (
-                    f"You are {abs(delta_pct):.0f}% less disciplined "
-                    f"than last {period}. The Protocol does not forgive regression."
+                    f"You are {abs(delta_pct):.0f}% less disciplined than "
+                    f"last {period}. The Protocol does not forgive regression."
                 )
             else:
                 comparison = "Identical to last period. Stagnation is decline."
@@ -446,15 +562,14 @@ class GlobalReportView(LoginRequiredMixin, TemplateView):
         else:
             comparison = "No data for this period. Log your first report."
 
-        # FIX: Use %-d on Windows, remove leading zero cross-platform
-        trend_data = []
-        for r in reports:
-            day_str = str(r.date.day)   # cross-platform, no %#d or %-d
-            month_str = r.date.strftime('%b')
-            trend_data.append({
-                'date':  f"{month_str} {day_str}",
+        # Cross-platform date formatting (no %#d or %-d)
+        trend_data = [
+            {
+                'date':  f"{r.date.strftime('%b')} {r.date.day}",
                 'score': r.discipline_score,
-            })
+            }
+            for r in reports
+        ]
 
         ctx.update({
             'period':       period,
@@ -465,9 +580,9 @@ class GlobalReportView(LoginRequiredMixin, TemplateView):
             'prev_score':   prev_score,
             'comparison':   comparison,
             'trend_data':   json.dumps(trend_data),
-            'total_it':     sum(r.it_math_hours for r in reports),
-            'total_pages':  sum(r.pages_read    for r in reports),
-            'total_kcal':   sum(r.calories      for r in reports),
+            'total_it':     round(sum(r.it_math_hours for r in reports), 1),
+            'total_pages':  sum(r.pages_read for r in reports),
+            'total_kcal':   sum(r.calories for r in reports),
             'total_km':     round(sum(r.distance_km for r in reports), 1),
             'report_count': len(reports),
         })
@@ -479,32 +594,35 @@ class GlobalReportView(LoginRequiredMixin, TemplateView):
 # ══════════════════════════════════════════════════════════════════════
 
 def _score_to_dot_class(score):
-    if score is None:
-        return 'dot-empty'
-    if score < 5.84:
-        return 'dot-low'
-    if score < 13.08:
-        return 'dot-mid'
+    if score is None: return 'dot-empty'
+    if score < 5.84:  return 'dot-low'
+    if score < 13.08: return 'dot-mid'
     return 'dot-high'
 
 
 def _average_score(reports):
     if not reports:
         return 0.0
-    return round(
-        sum(r.discipline_score for r in reports) / len(reports), 2
-    )
+    return round(sum(r.discipline_score for r in reports) / len(reports), 2)
+
+
+def _get_cached_shadow(user, today):
+    """PERFORMANCE: Cache Protocol Shadow per user for 5 minutes."""
+    cache_key = f'shadow_{user.id}'
+    cached    = cache.get(cache_key)
+    if cached is not None:
+        return cached
+    result = _calculate_protocol_shadow(user, today)
+    cache.set(cache_key, result, timeout=300)
+    return result
 
 
 def _calculate_protocol_shadow(user, today):
     DAYS_AHEAD = 180
     LOOKBACK   = 7
-
-    start  = today - datetime.timedelta(days=LOOKBACK - 1)
-    recent = list(DailyReport.objects.filter(
-        user=user,
-        date__gte=start,
-        date__lte=today,
+    start      = today - datetime.timedelta(days=LOOKBACK - 1)
+    recent     = list(DailyReport.objects.filter(
+        user=user, date__gte=start, date__lte=today,
     ))
 
     if not recent:
@@ -514,7 +632,6 @@ def _calculate_protocol_shadow(user, today):
             'days_ahead': DAYS_AHEAD,
         }
 
-    # Daily averages (divide by LOOKBACK not len(recent) — gaps count)
     avg_it    = sum(r.it_math_hours for r in recent) / LOOKBACK
     avg_pages = sum(r.pages_read    for r in recent) / LOOKBACK
     avg_kcal  = sum(r.calories      for r in recent) / LOOKBACK
@@ -526,23 +643,16 @@ def _calculate_protocol_shadow(user, today):
     proj_kcal  = avg_kcal  * DAYS_AHEAD
     proj_km    = avg_km    * DAYS_AHEAD
 
-    if avg_score < 5.84:
-        rank_proj = "still in Novice territory"
-    elif avg_score < 9.46:
-        rank_proj = "reaching Apprentice III"
-    elif avg_score < 13.08:
-        rank_proj = "breaking into Intermediate"
-    elif avg_score < 16.71:
-        rank_proj = "climbing Advanced ranks"
-    elif avg_score < 19.13:
-        rank_proj = "approaching Master"
-    elif avg_score < 22.75:
-        rank_proj = "knocking on Protocolmaxxer's door"
-    else:
-        rank_proj = "a confirmed Protocolmaxxer — the apex"
+    if avg_score < 5.84:       rank_proj = "still in Novice territory"
+    elif avg_score < 9.46:     rank_proj = "reaching Apprentice III"
+    elif avg_score < 13.08:    rank_proj = "breaking into Intermediate"
+    elif avg_score < 16.71:    rank_proj = "climbing Advanced ranks"
+    elif avg_score < 19.13:    rank_proj = "approaching Master"
+    elif avg_score < 22.75:    rank_proj = "knocking on Protocolmaxxer's door"
+    else:                      rank_proj = "a confirmed Protocolmaxxer — the apex"
 
     return {
-        'has_data':  True,
+        'has_data':   True,
         'days_ahead': DAYS_AHEAD,
         'avg_score':  avg_score,
         'proj_it':    round(proj_it, 1),
@@ -554,14 +664,12 @@ def _calculate_protocol_shadow(user, today):
             f"In {DAYS_AHEAD} days at this pace: "
             f"{round(proj_it):.0f}h of IT mastery, "
             f"{int(proj_pages):,} pages consumed, "
-            f"{round(proj_km):.0f}km covered — "
-            f"{rank_proj}."
+            f"{round(proj_km):.0f}km covered — {rank_proj}."
         ),
     }
 
 
 def _get_client_ip(request):
-    """SECURITY: Real client IP, respects reverse proxies."""
     x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
     if x_forwarded_for:
         return x_forwarded_for.split(',')[0].strip()
@@ -569,10 +677,14 @@ def _get_client_ip(request):
 
 
 def handler429(request, exception=None):
-    """SECURITY: Graceful 429 — JSON for AJAX, HTML for browser."""
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        return JsonResponse(
-            {'error': 'Too many requests. Please slow down.'},
-            status=429
-        )
+        return JsonResponse({'error': 'Too many requests. Please slow down.'}, status=429)
     return render(request, 'protocol_app/429.html', status=429)
+
+
+def handler404(request, exception=None):
+    return render(request, 'protocol_app/404.html', status=404)
+
+
+def handler500(request):
+    return render(request, 'protocol_app/500.html', status=500)

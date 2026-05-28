@@ -20,7 +20,20 @@
   <div class="protocol-card">
     <form method="post" novalidate onsubmit="showProcessing()">
       {% csrf_token %}
-
+      {% if validation_error %}
+      <div style="
+        background:var(--low-bg);
+        border:1px solid rgba(192,57,43,0.25);
+       border-radius:var(--r-md);
+        padding:12px 16px;
+        margin-bottom:16px;
+        font-family:var(--font-display);
+        font-size:11px;
+        font-weight:600;
+        color:var(--low-color);
+        letter-spacing:0.5px;
+      ">⚠ {{ validation_error }}</div>
+      {% endif %}            
       <div class="form-group">
         <label class="form-label">Date</label>
         {{ form.date }}

@@ -1,0 +1,21 @@
+{% extends 'protocol_app/base.html' %}
+{% block title %}PROTOCOL — NOT FOUND{% endblock %}
+{% block content %}
+<div class="auth-wrap">
+  <div class="auth-card" style="text-align:center;">
+    <div style="font-family:var(--font-number);font-size:88px;color:var(--ink);line-height:1;margin-bottom:4px;">404</div>
+    <div class="auth-logo" style="margin-bottom:6px;">PAGE NOT FOUND</div>
+    <div class="auth-tagline" style="margin-bottom:24px;">This page doesn't exist in the Protocol.</div>
+    <p style="font-size:13px;color:var(--ink-3);line-height:1.7;margin-bottom:28px;">
+      The discipline record you're looking for has been deleted,<br>
+      moved, or never existed. Check the URL and try again.
+    </p>
+    <a href="/" class="protocol-submit-btn" style="display:block;padding:14px;text-decoration:none;text-align:center;">
+      RETURN TO DASHBOARD
+    </a>
+    <div class="auth-footer" style="margin-top:16px;">
+      <a href="{% url 'global_report' %}">View Global Report</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

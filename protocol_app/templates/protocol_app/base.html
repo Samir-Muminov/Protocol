@@ -60,6 +60,16 @@
           <line x1="8"  y1="12" x2="16" y2="12"/>
         </svg>
         <span class="nav-label">LOG</span>
+        <a href="{% url 'profile' %}"
+           class="nav-link {% if request.resolver_match.        url_name == 'profile' %}active{% endif %}"
+           title="Profile">
+          <svg width="14" height="14" viewBox="0 0 24 24"         fill="none"
+               stroke="currentColor" stroke-width="2"         stroke-linecap="round"         stroke-linejoin="round">
+            <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4         4v2"/>
+            <circle cx="12" cy="7" r="4"/>
+          </svg>
+          <span class="nav-label">ME</span>
+        </a>
       </a>
 
       <!-- EXIT — POST form for true logout -->

@@ -472,6 +472,20 @@
     <div class="modal-handle"></div>
     <div class="modal-title">INPUT PROTOCOL</div>
     <div class="modal-subtitle">LOG YOUR DISCIPLINE DATA</div>
+    {% if validation_error %}
+    <div style="
+      background:var(--low-bg);
+      border:1px solid rgba(192,57,43,0.25);
+      border-radius:var(--r-md);
+      padding:12px 16px;
+      margin-bottom:16px;
+      font-family:var(--font-display);
+      font-size:11px;
+      font-weight:600;
+      color:var(--low-color);
+      letter-spacing:0.5px;
+    ">⚠ {{ validation_error }}</div>
+    {% endif %}    
     <form method="post" action="{% url 'add_report' %}" id="reportForm"
           onsubmit="handleFormSubmit(event)">
       {% csrf_token %}

@@ -33,8 +33,8 @@ class DailyReport(models.Model):
     user          = models.ForeignKey(User, on_delete=models.CASCADE, related_name='reports')
     date          = models.DateField(default=timezone.localdate)
     it_math_hours = models.FloatField(default=0.0, help_text="Target: 1 hour")
-    pages_read    = models.IntegerField(default=0,  help_text="Target: 50 pages")
-    calories      = models.IntegerField(default=0,  help_text="Target: 500 kcal")
+    pages_read    = models.IntegerField(default=0,  help_text="Target: 25 pages")
+    calories      = models.IntegerField(default=0,  help_text="Target: 1500 kcal")
     distance_km   = models.FloatField(default=0.0,  help_text="Target: 5 km")
     ai_comment    = models.TextField(blank=True, default='')
     created_at    = models.DateTimeField(auto_now_add=True)
@@ -42,7 +42,12 @@ class DailyReport(models.Model):
 
     class Meta:
         unique_together = ('user', 'date')
-        ordering = ['-date']
+        ordering        = ['-date']
+        verbose_name    = 'Daily Report'
+        indexes = [
+            models.Index(fields=['user', '-date']),
+            models.Index(fields=['date']),
+        ]
 
     def __str__(self):
         return f"{self.user.username} | {self.date} | Score: {self.discipline_score:.2f}"

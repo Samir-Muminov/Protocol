@@ -1,0 +1,18 @@
+{% extends 'protocol_app/base.html' %}
+{% block title %}PROTOCOL — SYSTEM ERROR{% endblock %}
+{% block content %}
+<div class="auth-wrap">
+  <div class="auth-card" style="text-align:center;">
+    <div style="font-family:var(--font-number);font-size:88px;color:var(--low-color);line-height:1;margin-bottom:4px;">500</div>
+    <div class="auth-logo" style="margin-bottom:6px;">SYSTEM ERROR</div>
+    <div class="auth-tagline" style="margin-bottom:24px;">The Protocol encountered an internal error.</div>
+    <p style="font-size:13px;color:var(--ink-3);line-height:1.7;margin-bottom:28px;">
+      Something broke on our end. Your data is safe.<br>
+      Try again in a moment — the Protocol will recover.
+    </p>
+    <a href="/" class="protocol-submit-btn" style="display:block;padding:14px;text-decoration:none;text-align:center;">
+      RETURN TO DASHBOARD
+    </a>
+  </div>
+</div>
+{% endblock %}
